@@ -60,3 +60,14 @@ on the host, so nothing is uploaded, downloaded or metered. Use
 `actions/upload-artifact` only when the bytes genuinely have to leave the
 fleet; it is metered against the account's Actions storage, and that quota
 being full is what broke artifact uploads organization-wide on 2026-08-31.
+
+## Fleet toolchain audit
+
+`Fleet toolchain audit` reports, for every self-hosted runner by name, whether
+the pinned Node.js and npm are in that runner's Actions tool cache and how
+large the shared dependency and build stores are. Run it after any runner
+provisioning change.
+
+It lives here rather than in a private repository on purpose: while the account
+is billing-locked, private repositories cannot start a workflow at all, so a
+fleet diagnostic kept there is unavailable exactly when it is needed.
