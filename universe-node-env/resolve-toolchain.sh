@@ -6,7 +6,21 @@
 # instead of the ~93 seconds an actions/setup-node download costs.
 set -euo pipefail
 
-pinned_node="$(tr -d ' \t\r\nv' < "${NODE_VERSION_FILE}")"
+# .nvmrc is the preferred pin, but not every repository has one. Fall back to
+# package.json engines, then to the organization pin, so a repository without
+# an .nvmrc still gets an exact declared version rather than whatever happens
+# to be first on PATH.
+if [ -f "${NODE_VERSION_FILE}" ]; then
+  pinned_node="$(tr -d ' \t\r\nv' < "${NODE_VERSION_FILE}")"
+else
+  pinned_node="$(sed -n 's/.*"node"[[:space:]]*:[[:space:]]*"[^0-9]*\([0-9][0-9.]*\).*/\1/p' package.json 2>/dev/null | head -n 1)"
+  if [ -z "${pinned_node}" ] || [ "$(printf '%s' "${pinned_node}" | tr -cd . | wc -c)" -ne 2 ]; then
+    pinned_node="${UNIVERSE_NODE_VERSION:-24.19.0}"
+    echo "No ${NODE_VERSION_FILE} and no exact engines.node; using the organization pin ${pinned_node}."
+  else
+    echo "No ${NODE_VERSION_FILE}; using engines.node ${pinned_node} from package.json."
+  fi
+fi
 pinned_npm="$(node -e 'process.stdout.write(require("./package.json").engines?.npm ?? "")' 2>/dev/null || true)"
 if [ -z "${pinned_npm}" ]; then
   pinned_npm="$(sed -n 's/.*"npm"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1)"
