@@ -1,0 +1,59 @@
+name: Fleet disk reclaim
+
+# A full runner disk fails jobs in "Set up job", before any step runs, with
+# "No space left on device". The job looks unrelated to the change under test.
+on:
+  workflow_dispatch:
+    inputs:
+      runners:
+        description: Comma separated runner name labels, or "all".
+        required: false
+        default: all
+      apply:
+        description: Set to true to delete. Default reports only.
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  reclaim:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03,
+                 universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06,
+                 universe-runner-01, universe-runner-02, universe-runner-03, universe-runner-04,
+                 universe-runner-05, universe-runner-06, universe-runner-07, universe-runner-08]
+    runs-on: [self-hosted, "${{ matrix.runner }}"]
+    timeout-minutes: 20
+    steps:
+      - name: Reclaim disk
+        if: ${{ inputs.runners == 'all' || contains(inputs.runners, matrix.runner) }}
+        shell: bash
+        env:
+          APPLY: ${{ inputs.apply }}
+        run: |
+          set -u
+          root="$(dirname "$(dirname "$RUNNER_WORKSPACE")")"
+          echo "runner=$RUNNER_NAME root=$root"
+          echo "--- before ---"; df -h "$root" /tmp 2>/dev/null | sed 's/^/  /'
+          if [ "$APPLY" != "true" ]; then
+            echo "--- largest consumers ---"
+            du -xh --max-depth=2 "$(dirname "$root")" 2>/dev/null | sort -rh | head -15 | sed 's/^/  /'
+            echo "(report only; rerun with apply=true to delete)"
+            exit 0
+          fi
+          # Job workspaces of repositories with no job running right now. The
+          # runner recreates whatever it needs on the next checkout.
+          find "$(dirname "$root")" -maxdepth 3 -type d -name '_temp' -mmin +120 -exec rm -rf {} + 2>/dev/null || true
+          find "$(dirname "$root")" -maxdepth 3 -type d -name '_diag' -mmin +1440 -exec rm -rf {} + 2>/dev/null || true
+          find "$(dirname "$root")" -maxdepth 2 -name '*.log' -mtime +3 -delete 2>/dev/null || true
+          # Docker reclaims the most and is always rebuildable.
+          if command -v docker >/dev/null 2>&1; then
+            docker system prune -af --filter 'until=48h' 2>/dev/null | tail -2 | sed 's/^/  docker: /' || true
+            docker builder prune -af --filter 'until=48h' 2>/dev/null | tail -1 | sed 's/^/  buildx: /' || true
+          fi
+          npm cache verify 2>/dev/null | tail -2 | sed 's/^/  npm: /' || true
+          echo "--- after ---"; df -h "$root" /tmp 2>/dev/null | sed 's/^/  /'
