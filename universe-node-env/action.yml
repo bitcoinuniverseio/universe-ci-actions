@@ -1,0 +1,108 @@
+name: Universe Node environment
+description: >-
+  Resolves the pinned Node.js and npm toolchain from the runner image and
+  restores an exact, content-addressed dependency state. Nothing is downloaded
+  or installed on a warm runner.
+
+inputs:
+  working-directory:
+    description: Directory holding package.json and package-lock.json.
+    required: false
+    default: .
+  node-version-file:
+    description: File holding the pinned Node.js version.
+    required: false
+    default: .nvmrc
+  install:
+    description: Set to false to resolve the toolchain without touching dependencies.
+    required: false
+    default: 'true'
+  npm-install-args:
+    description: Extra flags appended to the fallback npm ci.
+    required: false
+    default: ''
+  store-root:
+    description: >-
+      Directory holding the content-addressed dependency store on a persistent
+      runner. Ignored on ephemeral runners, which use actions/cache instead.
+    required: false
+    default: ''
+
+outputs:
+  node-version:
+    description: Node.js version now on PATH.
+    value: ${{ steps.plan.outputs.node-version }}
+  npm-version:
+    description: npm version now on PATH.
+    value: ${{ steps.plan.outputs.npm-version }}
+  dependency-key:
+    description: Content-addressed dependency key.
+    value: ${{ steps.plan.outputs.dependency-key }}
+  dependency-state:
+    description: hit or miss.
+    value: ${{ steps.deps.outputs.state }}
+  persistent-runner:
+    description: true when the runner keeps its disk between jobs.
+    value: ${{ steps.plan.outputs.persistent }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve pinned toolchain
+      id: toolchain
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NODE_VERSION_FILE: ${{ inputs.node-version-file }}
+      run: bash "${{ github.action_path }}/resolve-toolchain.sh"
+
+    # A missing pin is a runner image defect. Report it, repair this one job so
+    # the branch is still validated, and leave the loud marker in the log.
+    - name: Repair missing toolchain
+      if: steps.toolchain.outputs.needs-install == 'true'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ steps.toolchain.outputs.pinned-node }}
+
+    - name: Confirm toolchain
+      if: steps.toolchain.outputs.needs-install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PINNED_NPM: ${{ steps.toolchain.outputs.pinned-npm }}
+      run: bash "${{ github.action_path }}/confirm-toolchain.sh"
+
+    - name: Plan dependency state
+      id: plan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PINNED_NODE: ${{ steps.toolchain.outputs.pinned-node }}
+        PINNED_NPM: ${{ steps.toolchain.outputs.pinned-npm }}
+        NPM_INSTALL_ARGS: ${{ inputs.npm-install-args }}
+        STORE_ROOT_INPUT: ${{ inputs.store-root }}
+      run: bash "${{ github.action_path }}/plan-dependencies.sh"
+
+    # Ephemeral runners have no local store. RunsOn serves this from the
+    # account's own S3 bucket, so the transfer stays inside the VPC.
+    - name: Restore dependency state (ephemeral runner)
+      id: remote-cache
+      if: inputs.install == 'true' && steps.plan.outputs.persistent != 'true'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ steps.plan.outputs.node-modules-path }}
+        key: ${{ steps.plan.outputs.dependency-key }}
+        enableCrossOsArchive: false
+
+    - name: Resolve dependencies
+      id: deps
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        DEPENDENCY_KEY: ${{ steps.plan.outputs.dependency-key }}
+        DEPENDENCY_STORE: ${{ steps.plan.outputs.store-root }}
+        PERSISTENT_RUNNER: ${{ steps.plan.outputs.persistent }}
+        REMOTE_CACHE_HIT: ${{ steps.remote-cache.outputs.cache-hit }}
+        NPM_INSTALL_ARGS: ${{ inputs.npm-install-args }}
+      run: bash "${{ github.action_path }}/resolve-dependencies.sh"
