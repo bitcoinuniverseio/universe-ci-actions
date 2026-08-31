@@ -44,6 +44,16 @@ rm -rf node_modules
 # shellcheck disable=SC2086
 npm ci --no-audit --no-fund ${NPM_INSTALL_ARGS:-}
 
+# A lockfile can resolve to nothing to install, and npm then creates no
+# node_modules at all. There is no tree to store and nothing for a later job
+# to restore, so say so and stop rather than failing on a missing directory.
+if [ ! -d node_modules ]; then
+  echo "NO DEPENDENCIES: the lockfile installs nothing, so there is no tree to reuse."
+  state=empty
+  report
+  exit 0
+fi
+
 if [ -n "${archive}" ]; then
   # Written to a private temporary name and moved into place, so a second job
   # racing on the same key never reads a half-written archive.
