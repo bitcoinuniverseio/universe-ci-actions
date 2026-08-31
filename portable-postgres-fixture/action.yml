@@ -1,0 +1,30 @@
+name: Portable PostgreSQL fixture
+description: Start an isolated PostgreSQL test fixture on certified Linux or Windows container builders.
+
+inputs:
+  image:
+    description: PostgreSQL image pinned by digest.
+    required: true
+  database:
+    description: Database created for the test job.
+    required: true
+  user:
+    description: Non-root database user created for the test job.
+    required: false
+    default: universe_ci
+  password:
+    description: Password for the test user.
+    required: true
+
+outputs:
+  host:
+    description: Hostname or private address for the fixture.
+  port:
+    description: Dynamically allocated host port.
+  container:
+    description: Run-scoped container name.
+
+runs:
+  using: node24
+  main: main.mjs
+  post: post.mjs

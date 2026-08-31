@@ -1,0 +1,79 @@
+name: Portable Node CI
+description: Run the shared Node build and test contract on certified Linux or Windows runners.
+
+inputs:
+  node-version-file:
+    description: Optional repository-relative Node version file.
+    required: false
+    default: ""
+  node-version:
+    description: Node version used when no version file is present.
+    required: false
+    default: "24.19.0"
+  audit-script:
+    description: Optional npm script to run before the build.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - id: runtime
+      name: Resolve Node runtime
+      shell: pwsh
+      env:
+        NODE_VERSION_FILE: ${{ inputs.node-version-file }}
+        NODE_VERSION_FALLBACK: ${{ inputs.node-version }}
+      run: |
+        $version = $env:NODE_VERSION_FALLBACK
+        if ($env:NODE_VERSION_FILE -and (Test-Path -LiteralPath $env:NODE_VERSION_FILE -PathType Leaf)) {
+          $version = (Get-Content -LiteralPath $env:NODE_VERSION_FILE -Raw).Trim()
+        }
+        if (-not $version) { throw "Node version is empty" }
+        "version=$version" | Out-File -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ steps.runtime.outputs.version }}
+
+    - name: Pin npm
+      shell: pwsh
+      run: |
+        $actual = (npm --version).Trim()
+        if ($actual -ne "11.17.0") {
+          npm install --global npm@11.17.0
+          $actual = (npm --version).Trim()
+        }
+        if ($actual -ne "11.17.0") { throw "Expected npm 11.17.0, received $actual" }
+
+    - name: Install dependencies
+      shell: pwsh
+      run: |
+        if (Test-Path -LiteralPath "package-lock.json" -PathType Leaf) {
+          npm ci --legacy-peer-deps
+        } else {
+          npm install --legacy-peer-deps
+        }
+
+    - name: Audit production dependencies
+      if: inputs.audit-script != ''
+      shell: pwsh
+      env:
+        AUDIT_SCRIPT: ${{ inputs.audit-script }}
+      run: npm run $env:AUDIT_SCRIPT
+
+    - name: Build
+      shell: pwsh
+      run: npm run build --if-present
+
+    - name: Test
+      shell: pwsh
+      env:
+        CI: "true"
+      run: |
+        $package = Get-Content -LiteralPath "package.json" -Raw
+        if ($package -match '"react-scripts"') {
+          npm test -- --watchAll=false --passWithNoTests
+        } else {
+          npm test --if-present
+        }

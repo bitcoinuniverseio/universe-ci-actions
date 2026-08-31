@@ -1,0 +1,157 @@
+name: Portable Linux container build
+description: Build a Linux image on a certified native Linux runner.
+
+inputs:
+  context:
+    description: Repository-relative or absolute build context.
+    required: false
+    default: .
+  dockerfile:
+    description: Optional repository-relative or absolute Dockerfile path.
+    required: false
+    default: ""
+  tag:
+    description: Optional image tag. A run-scoped tag is generated when omitted.
+    required: false
+    default: ""
+  target:
+    description: Optional Dockerfile target stage.
+    required: false
+    default: ""
+  build-args:
+    description: Optional newline-separated KEY=VALUE build arguments.
+    required: false
+    default: ""
+  pull:
+    description: Pull referenced base images before building.
+    required: false
+    default: "false"
+  cleanup:
+    description: Remove the run-scoped image after a successful or failed build.
+    required: false
+    default: "true"
+  run-environment:
+    description: Optional newline-separated KEY=VALUE environment for a post-build container command.
+    required: false
+    default: ""
+  run-command-json:
+    description: Optional JSON array command executed in the built Linux image before cleanup.
+    required: false
+    default: "[]"
+
+outputs:
+  tag:
+    description: Image tag used for the build.
+    value: ${{ steps.build.outputs.tag }}
+
+runs:
+  using: composite
+  steps:
+    - id: build
+      name: Build the Linux image
+      shell: pwsh
+      env:
+        INPUT_CONTEXT: ${{ inputs.context }}
+        INPUT_DOCKERFILE: ${{ inputs.dockerfile }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_BUILD_ARGS: ${{ inputs.build-args }}
+        INPUT_PULL: ${{ inputs.pull }}
+        INPUT_CLEANUP: ${{ inputs.cleanup }}
+        INPUT_RUN_ENVIRONMENT: ${{ inputs.run-environment }}
+        INPUT_RUN_COMMAND_JSON: ${{ inputs.run-command-json }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+
+        function Resolve-CiPath([string]$Value) {
+          if (-not $Value) { throw 'A required path input is empty' }
+          return (Resolve-Path -LiteralPath $Value -ErrorAction Stop).Path
+        }
+
+        $contextPath = Resolve-CiPath $env:INPUT_CONTEXT
+        $dockerfilePath = if ($env:INPUT_DOCKERFILE) { Resolve-CiPath $env:INPUT_DOCKERFILE } else { '' }
+        $tag = $env:INPUT_TAG.Trim()
+        if (-not $tag) {
+          $identity = "$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-$env:GITHUB_JOB-$env:RUNNER_NAME".ToLowerInvariant()
+          $identity = $identity -replace '[^a-z0-9_.-]', '-'
+          $tag = "universe-ci-build:$identity"
+        }
+        if ($tag -notmatch '^[a-zA-Z0-9][a-zA-Z0-9._/-]*:[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$') {
+          throw "Image tag is not an explicit name:tag value: $tag"
+        }
+
+        $dockerArguments = [Collections.Generic.List[string]]::new()
+        foreach ($value in @('buildx', 'build', '--load', '--tag', $tag)) { $dockerArguments.Add($value) }
+        if ($env:INPUT_PULL -eq 'true') { $dockerArguments.Add('--pull') }
+        if ($env:INPUT_TARGET) {
+          $dockerArguments.Add('--target')
+          $dockerArguments.Add($env:INPUT_TARGET)
+        }
+        foreach ($buildArgument in @($env:INPUT_BUILD_ARGS -split "`r?`n" | Where-Object { $_ })) {
+          if ($buildArgument -notmatch '^[A-Za-z_][A-Za-z0-9_]*=') { throw "Malformed build argument: $buildArgument" }
+          $dockerArguments.Add('--build-arg')
+          $dockerArguments.Add($buildArgument)
+        }
+
+        $cleanup = $env:INPUT_CLEANUP -eq 'true'
+        $runArguments = [Collections.Generic.List[string]]::new()
+        foreach ($value in @('run', '--rm')) { $runArguments.Add($value) }
+        $runEnvironment = @($env:INPUT_RUN_ENVIRONMENT -split "`r?`n" | Where-Object { $_ })
+        foreach ($environmentValue in $runEnvironment) {
+          if ($environmentValue -notmatch '^[A-Za-z_][A-Za-z0-9_]*=') { throw "Malformed run environment: $environmentValue" }
+          $runArguments.Add('--env')
+          $runArguments.Add($environmentValue)
+        }
+        try {
+          $parsedCommand = ConvertFrom-Json -InputObject $env:INPUT_RUN_COMMAND_JSON -NoEnumerate
+        } catch {
+          throw "run-command-json must be a JSON array: $($_.Exception.Message)"
+        }
+        if ($parsedCommand -isnot [array]) { throw 'run-command-json must be a JSON array' }
+        $runArguments.Add($tag)
+        foreach ($commandPart in $parsedCommand) {
+          if ($commandPart -isnot [string] -or -not $commandPart) { throw 'run-command-json entries must be non-empty strings' }
+          $runArguments.Add($commandPart)
+        }
+        $shouldRun = $runEnvironment.Count -gt 0 -or $parsedCommand.Count -gt 0
+        if (-not $IsLinux) {
+          throw "Unsupported runner operating system: $env:RUNNER_OS"
+        }
+        if ($dockerfilePath) {
+          $dockerArguments.Add('--file')
+          $dockerArguments.Add($dockerfilePath)
+        }
+        $dockerArguments.Add($contextPath)
+        try {
+          $serverVersion = (& docker version --format '{{.Server.Version}}').Trim()
+          if ($serverVersion -ne '29.7.2') {
+            # Ephemeral cloud runners come from a vendor image that ships a
+            # different Docker Engine. The pinned version is an organization
+            # requirement, so install it here rather than refuse to build. The
+            # permanent fleet already matches, so this is a no-op there.
+            Write-Host "Docker $serverVersion is not the pinned 29.7.2, installing the pinned engine"
+            $apt = 'DEBIAN_FRONTEND=noninteractive apt-get'
+            & sudo bash -c "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc"
+            if ($LASTEXITCODE -ne 0) { throw "Could not install the Docker apt key" }
+            & sudo bash -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list'
+            if ($LASTEXITCODE -ne 0) { throw "Could not add the Docker apt source" }
+            & sudo bash -c "$apt update -qq"
+            if ($LASTEXITCODE -ne 0) { throw "Could not refresh apt metadata" }
+            $candidate = (& bash -c "apt-cache madison docker-ce | awk '/29\.7\.2/ {print `$3; exit}'").Trim()
+            if (-not $candidate) { throw "Docker 29.7.2 is not offered by the Docker apt repository for this image" }
+            & sudo bash -c "$apt install -y -qq --allow-downgrades docker-ce=$candidate docker-ce-cli=$candidate containerd.io docker-buildx-plugin"
+            if ($LASTEXITCODE -ne 0) { throw "Could not install Docker 29.7.2" }
+            & sudo systemctl restart docker
+            $serverVersion = (& docker version --format '{{.Server.Version}}').Trim()
+          }
+          if ($serverVersion -ne '29.7.2') { throw "Expected Docker 29.7.2, received $serverVersion" }
+          & docker @dockerArguments
+          if ($LASTEXITCODE -ne 0) { throw "Docker build exited with $LASTEXITCODE" }
+          if ($shouldRun) {
+            & docker @runArguments
+            if ($LASTEXITCODE -ne 0) { throw "Docker command exited with $LASTEXITCODE" }
+          }
+        } finally {
+          if ($cleanup) { & docker image rm --force $tag *> $null }
+        }
+        "tag=$tag" | Out-File -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8 -Append
