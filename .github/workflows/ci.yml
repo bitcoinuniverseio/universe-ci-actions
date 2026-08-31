@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: universe-ci-actions-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-environment:
+    name: Pinned Docker environment
+    runs-on: runs-on=${{ github.run_id }}-docker/runner=universe-hosted/cpu=2+8/env=production
+    timeout-minutes: 10
+    steps:
+      - uses: runs-on/action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./universe-docker-env
+      - name: Check the Docker pin
+        shell: bash
+        run: test "$(docker version --format '{{.Server.Version}}')" = '29.7.2'

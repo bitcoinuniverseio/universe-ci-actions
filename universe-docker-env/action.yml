@@ -1,0 +1,49 @@
+name: Universe Docker environment
+description: Ensure the runner uses the pinned Docker Engine.
+
+outputs:
+  docker-version:
+    description: Docker Engine version available to later steps.
+    value: ${{ steps.docker.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure pinned Docker Engine
+      id: docker
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        readonly required_version='29.7.2'
+        current_version="$(docker version --format '{{.Server.Version}}')"
+        if [[ "$current_version" != "$required_version" ]]; then
+          echo "Docker $current_version is not the pinned $required_version. Installing the pinned engine."
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg |
+            sudo tee /etc/apt/keyrings/docker.asc >/dev/null
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
+          . /etc/os-release
+          printf '%s\n' \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" |
+            sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+          candidate="$(apt-cache madison docker-ce | awk '/29\.7\.2/ {print $3; exit}')"
+          if [[ -z "$candidate" ]]; then
+            echo "Docker $required_version is not offered for this runner image." >&2
+            exit 1
+          fi
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --allow-downgrades \
+            "docker-ce=$candidate" \
+            "docker-ce-cli=$candidate" \
+            containerd.io \
+            docker-buildx-plugin
+          sudo systemctl restart docker
+          current_version="$(docker version --format '{{.Server.Version}}')"
+        fi
+
+        if [[ "$current_version" != "$required_version" ]]; then
+          echo "Expected Docker $required_version, received $current_version" >&2
+          exit 1
+        fi
+        echo "version=$current_version" >> "$GITHUB_OUTPUT"
