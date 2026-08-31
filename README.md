@@ -39,6 +39,17 @@ resolved in 0.4 seconds.
 Full rationale and the dependency key definition:
 `.github-private/docs/node-ci-environment.md`.
 
+## universe-docker-env
+
+Checks the Docker Engine version and installs Docker 29.7.2 when the runner
+image has a different release. Use it before a portable container fixture on
+fresh RunsOn machines.
+
+```yaml
+- uses: bitcoinuniverseio/universe-ci-actions/universe-docker-env@main
+- uses: bitcoinuniverseio/universe-ci-actions/portable-mysql-fixture@main
+```
+
 ## universe-build-store
 
 Saves a build output once and restores it everywhere else, keyed by the exact
