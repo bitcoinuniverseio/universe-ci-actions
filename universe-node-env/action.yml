@@ -87,7 +87,7 @@ runs:
     # account's own S3 bucket, so the transfer stays inside the VPC.
     - name: Restore dependency state (ephemeral runner)
       id: remote-cache
-      if: inputs.install == 'true' && steps.plan.outputs.persistent != 'true'
+      if: inputs.install == 'true' && steps.plan.outputs.no-dependencies != 'true' && steps.plan.outputs.persistent != 'true'
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ steps.plan.outputs.node-modules-path }}
@@ -96,7 +96,7 @@ runs:
 
     - name: Resolve dependencies
       id: deps
-      if: inputs.install == 'true'
+      if: inputs.install == 'true' && steps.plan.outputs.no-dependencies != 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:

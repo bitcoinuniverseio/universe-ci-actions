@@ -13,7 +13,7 @@ set -euo pipefail
 if [ -f "${NODE_VERSION_FILE}" ]; then
   pinned_node="$(tr -d ' \t\r\nv' < "${NODE_VERSION_FILE}")"
 else
-  pinned_node="$(sed -n 's/.*"node"[[:space:]]*:[[:space:]]*"[^0-9]*\([0-9][0-9.]*\).*/\1/p' package.json 2>/dev/null | head -n 1)"
+  pinned_node="$( [ -f package.json ] && sed -n 's/.*"node"[[:space:]]*:[[:space:]]*"[^0-9]*\([0-9][0-9.]*\).*/\1/p' package.json | head -n 1 || true)"
   if [ -z "${pinned_node}" ] || [ "$(printf '%s' "${pinned_node}" | tr -cd . | wc -c)" -ne 2 ]; then
     pinned_node="${UNIVERSE_NODE_VERSION:-24.19.0}"
     echo "No ${NODE_VERSION_FILE} and no exact engines.node; using the organization pin ${pinned_node}."
@@ -23,7 +23,7 @@ else
 fi
 pinned_npm="$(node -e 'process.stdout.write(require("./package.json").engines?.npm ?? "")' 2>/dev/null || true)"
 if [ -z "${pinned_npm}" ]; then
-  pinned_npm="$(sed -n 's/.*"npm"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1)"
+  pinned_npm="$( [ -f package.json ] && sed -n 's/.*"npm"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1 || true)"
 fi
 
 case "${RUNNER_ARCH:-X64}" in

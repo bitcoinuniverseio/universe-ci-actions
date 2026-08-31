@@ -24,13 +24,39 @@ fi
 # Node's ABI number is what every prebuilt native addon is compiled against.
 node_abi="$(node -p 'process.versions.modules')"
 
+# A repository can legitimately have no dependencies to install: a docs site
+# that runs plain node scripts has neither a package.json nor a lockfile. Say
+# so and let the toolchain stand on its own rather than failing the job.
+if [ ! -f package.json ]; then
+  echo "NO DEPENDENCIES: ${workspace_path} has no package.json; toolchain only."
+  {
+    echo "node-version=${node_version}"
+    echo "npm-version=${npm_version}"
+    echo "dependency-key="
+    echo "persistent=false"
+    echo "store-root="
+    echo "node-modules-path=${workspace_path}/node_modules"
+    echo "no-dependencies=true"
+  } >> "${GITHUB_OUTPUT}"
+  exit 0
+fi
+
 lockfiles="$(git ls-files -- '**/package-lock.json' 'package-lock.json' 'npm-shrinkwrap.json' '**/npm-shrinkwrap.json' 2>/dev/null | sort || true)"
 if [ -z "${lockfiles}" ]; then
   lockfiles="$(ls package-lock.json npm-shrinkwrap.json 2>/dev/null || true)"
 fi
 if [ -z "${lockfiles}" ]; then
-  echo "::error::No lockfile found in ${workspace_path}. Exact dependency reuse needs one."
-  exit 1
+  echo "NO DEPENDENCIES: ${workspace_path} has no lockfile; toolchain only."
+  {
+    echo "node-version=${node_version}"
+    echo "npm-version=${npm_version}"
+    echo "dependency-key="
+    echo "persistent=false"
+    echo "store-root="
+    echo "node-modules-path=${workspace_path}/node_modules"
+    echo "no-dependencies=true"
+  } >> "${GITHUB_OUTPUT}"
+  exit 0
 fi
 
 # Every input capable of making a restored tree wrong is inside the digest.
@@ -88,6 +114,7 @@ fi
   echo "persistent=${persistent}"
   echo "store-root=${store_root}"
   echo "node-modules-path=${workspace_path}/node_modules"
+  echo "no-dependencies=false"
 } >> "${GITHUB_OUTPUT}"
 
 echo "DEPENDENCY KEY: ${key}"
