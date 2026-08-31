@@ -1,0 +1,35 @@
+name: Fleet toolchain audit
+on: [workflow_dispatch]
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03,
+                 universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06,
+                 universe-runner-01, universe-runner-02, universe-runner-03, universe-runner-04,
+                 universe-runner-05, universe-runner-06, universe-runner-07, universe-runner-08]
+    runs-on: [self-hosted, "${{ matrix.runner }}"]
+    timeout-minutes: 10
+    steps:
+      - name: Report toolchain and shared store state
+        shell: bash
+        run: |
+          set -u
+          tc="${RUNNER_TOOL_CACHE:-/opt/hostedtoolcache}"
+          node_dir="$tc/node/24.19.0/x64"
+          root="$(dirname "$(npm config get cache 2>/dev/null || echo /tmp/x)")"
+          echo "runner=$RUNNER_NAME"
+          echo "arch=$(uname -m) cores=$(nproc) ram=$(free -g 2>/dev/null | awk "/Mem:/{print \$2}")G"
+          echo "tool_cache=$tc"
+          if [ -x "$node_dir/bin/node" ]; then
+            echo "NODE_IN_TOOL_CACHE=yes version=$("$node_dir/bin/node" --version) complete=$([ -f "$node_dir.complete" ] && echo yes || echo NO)"
+            echo "NPM_IN_TOOL_CACHE=$("$node_dir/bin/node" "$node_dir/bin/npm" --version 2>/dev/null || echo missing)"
+          else
+            echo "NODE_IN_TOOL_CACHE=NO"
+          fi
+          echo "shared_root=$root"
+          echo "dep_store=$([ -d "$root/.universe-dep-store" ] && du -sh "$root/.universe-dep-store" 2>/dev/null | cut -f1 || echo absent)"
+          echo "build_store=$([ -d "$root/.universe-build-store" ] && du -sh "$root/.universe-build-store" 2>/dev/null | cut -f1 || echo absent)"
+          echo "UNIVERSE_DEP_STORE_env=${UNIVERSE_DEP_STORE:-unset}"
+          echo "free_space=$(df -h "$root" | tail -1 | awk "{print \$4}")"
