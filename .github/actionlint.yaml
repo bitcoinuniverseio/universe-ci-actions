@@ -1,0 +1,40 @@
+# Self-hosted labels the Universe fleet actually registers. Regenerate with:
+#   gh api orgs/bitcoinuniverseio/actions/runners -q '[.runners[].labels[].name]|unique|.[]'
+self-hosted-runner:
+  labels:
+    - browser-heavy
+    - control-plane
+    - coolify
+    - core-ci-capacity
+    - docker-29-7-2
+    - docker-ci
+    - heavy
+    - linux-container-builder
+    - linux-ultra
+    - netcup
+    - netcup-1
+    - ovh
+    - ovh-ci
+    - playwright-chromium
+    - private-ci
+    - standard-ci
+    - ultra
+    - universe
+    - universe-ci
+    - universe-linux-ultra
+    - universe-linux-ultra-01
+    - universe-linux-ultra-02
+    - universe-linux-ultra-03
+    - universe-linux-ultra-04
+    - universe-linux-ultra-05
+    - universe-linux-ultra-06
+    - universe-router
+    - universe-runner-01
+    - universe-runner-02
+    - universe-runner-03
+    - universe-runner-04
+    - universe-runner-05
+    - universe-runner-06
+    - universe-runner-07
+    - universe-runner-08
+    - xvfb-ci
