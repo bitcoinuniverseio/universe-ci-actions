@@ -1,0 +1,62 @@
+import process from "node:process";
+import {
+  DOCKER_VERSION,
+  appendCommandValue,
+  dockerCommand,
+  requiredInput,
+  sanitizedIdentity,
+  validateFixtureInputs,
+  waitForMysql,
+  waitForTcp
+} from "./lib.mjs";
+
+async function main() {
+  const platform = process.platform;
+  appendCommandValue(process.env.GITHUB_STATE, "platform", platform);
+  if (platform !== "linux") throw new Error(`Unsupported runner platform: ${platform}`);
+
+  const version = dockerCommand(platform, ["version", "--format", "{{.Server.Version}}"], { capture: true }).stdout.trim();
+  if (version !== DOCKER_VERSION) throw new Error(`Expected Docker ${DOCKER_VERSION}, received ${version}`);
+
+  const inputs = {
+    image: requiredInput("image"),
+    database: requiredInput("database"),
+    user: process.env.INPUT_USER?.trim() || "universe_ci",
+    password: requiredInput("password"),
+    rootPassword: requiredInput("root_password")
+  };
+  validateFixtureInputs(inputs);
+
+  const container = `universe-ci-mysql-${sanitizedIdentity()}`;
+  const publishAddress = "127.0.0.1::3306";
+  dockerCommand(platform, [
+    "run", "--detach", "--name", container,
+    "--label", `universe.ci.run=${process.env.GITHUB_RUN_ID}`,
+    "--env", `MYSQL_DATABASE=${inputs.database}`,
+    "--env", `MYSQL_USER=${inputs.user}`,
+    "--env", `MYSQL_PASSWORD=${inputs.password}`,
+    "--env", `MYSQL_ROOT_PASSWORD=${inputs.rootPassword}`,
+    "--publish", publishAddress,
+    inputs.image,
+    // Test runners share finite host AIO capacity with other isolated jobs.
+    // MySQL's synchronous fallback is sufficient for fixtures and prevents a
+    // host-wide io_setup(EAGAIN) from making clean-schema checks flaky.
+    "--skip-innodb-use-native-aio"
+  ]);
+  appendCommandValue(process.env.GITHUB_STATE, "container", container);
+
+  const port = dockerCommand(platform, ["port", container, "3306/tcp"], { capture: true }).stdout.trim().match(/:(\d+)$/)?.[1];
+  if (!port) throw new Error(`Docker did not report a host port for ${container}`);
+  const host = "127.0.0.1";
+  await waitForMysql(platform, container, inputs.rootPassword);
+  await waitForTcp(host, Number(port));
+
+  appendCommandValue(process.env.GITHUB_OUTPUT, "host", host);
+  appendCommandValue(process.env.GITHUB_OUTPUT, "port", port);
+  appendCommandValue(process.env.GITHUB_OUTPUT, "container", container);
+}
+
+main().catch((error) => {
+  console.error(`::error::${error.message}`);
+  process.exitCode = 1;
+});

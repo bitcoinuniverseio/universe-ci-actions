@@ -71,3 +71,17 @@ provisioning change.
 It lives here rather than in a private repository on purpose: while the account
 is billing-locked, private repositories cannot start a workflow at all, so a
 fleet diagnostic kept there is unavailable exactly when it is needed.
+
+## portable-container-build, portable-node-ci, portable-mysql-fixture, portable-postgres-fixture
+
+Moved here from `bitcoinuniverseio/king` on 2026-08-31. They were unreachable
+from public repositories: `index-patina` is public and referenced
+`bitcoinuniverseio/king/.github/actions/portable-container-build`, which a
+public repository cannot resolve because `king` is private and must stay so.
+
+They hold no credential and no infrastructure address. The `password` inputs on
+the fixture actions are parameters for an isolated throwaway container bound to
+127.0.0.1.
+
+This repository is the single home for them. Do not copy them back into a
+private repository, or public consumers break again.
