@@ -38,3 +38,25 @@ resolved in 0.4 seconds.
 
 Full rationale and the dependency key definition:
 `.github-private/docs/node-ci-environment.md`.
+
+## universe-build-store
+
+Saves a build output once and restores it everywhere else, keyed by the exact
+commit plus the toolchain and machine shape that produced it.
+
+```yaml
+- run: npm run build
+- uses: bitcoinuniverseio/universe-ci-actions/universe-build-store@main
+  with: {path: dist, mode: save}
+```
+
+```yaml
+- uses: bitcoinuniverseio/universe-ci-actions/universe-build-store@main
+  with: {path: dist, mode: restore}
+```
+
+On a persistent runner the store is local NVMe shared by every runner service
+on the host, so nothing is uploaded, downloaded or metered. Use
+`actions/upload-artifact` only when the bytes genuinely have to leave the
+fleet; it is metered against the account's Actions storage, and that quota
+being full is what broke artifact uploads organization-wide on 2026-08-31.

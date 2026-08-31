@@ -1,0 +1,33 @@
+name: Universe build store
+description: >-
+  Saves a build output once and restores it everywhere else, keyed by the exact
+  commit. On a persistent runner the store is local NVMe shared by every runner
+  service on the host, so nothing is uploaded, downloaded or metered.
+
+inputs:
+  path:
+    description: Directory to save or restore.
+    required: true
+  mode:
+    description: save or restore.
+    required: true
+  key-suffix:
+    description: Extra text folded into the key, for a repository that builds more than one output from one commit.
+    required: false
+    default: ''
+
+outputs:
+  state:
+    description: hit or miss on restore, stored on save.
+    value: ${{ steps.run.outputs.state }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        BUILD_PATH: ${{ inputs.path }}
+        BUILD_MODE: ${{ inputs.mode }}
+        KEY_SUFFIX: ${{ inputs.key-suffix }}
+      run: bash "${{ github.action_path }}/build-store.sh"
