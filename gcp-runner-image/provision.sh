@@ -57,8 +57,9 @@ curl -fsSL https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 # Rust, pinned, system wide so every user sees the same toolchain.
 export RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
 curl -fsSL https://sh.rustup.rs \
-  | sh -s -- -y --no-modify-path --default-toolchain "${RUST_VERSION}" \
-      --component clippy rustfmt --profile minimal
+  | sh -s -- -y --no-modify-path --profile minimal \
+      --default-toolchain "${RUST_VERSION}" \
+      --component clippy --component rustfmt
 chmod -R a+rx /usr/local/cargo/bin
 printf 'export RUSTUP_HOME=/usr/local/rustup\nexport CARGO_HOME=/usr/local/cargo\nexport PATH=$PATH:/usr/local/cargo/bin\n' \
   > /etc/profile.d/rust.sh
