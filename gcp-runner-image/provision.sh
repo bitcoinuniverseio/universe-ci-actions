@@ -47,9 +47,11 @@ corepack prepare yarn@stable --activate
 # Deno. Sixteen workflows call setup-deno, so it belongs in the image.
 curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s -- --yes
 
-# Python and uv.
-apt-get install -y --no-install-recommends \
-  "python${PYTHON_VERSION}" "python${PYTHON_VERSION}-venv" python3-pip
+# Python and uv. The distro default is what apt can actually install: Noble
+# ships 3.12 and has no python3.11 package at all. Workflows needing an exact
+# interpreter get it from actions/setup-python or from uv, both already here,
+# so pinning one version here would only make the build fragile.
+apt-get install -y --no-install-recommends python3 python3-venv python3-pip
 curl -fsSL https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 
 # Rust, pinned, system wide so every user sees the same toolchain.
