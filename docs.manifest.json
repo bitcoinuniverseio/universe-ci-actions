@@ -4,7 +4,7 @@
   "name": "Universe CI actions",
   "classification": "ci",
   "repository": "bitcoinuniverseio/universe-ci-actions",
-  "documentationUrl": "https://docs.bitcoinuniverse.io/infrastructure/universe-ci-actions/",
+  "documentationUrl": "https://docs.bitcoinuniverse.io/developers/interfaces/",
   "docsRoot": ".",
   "sourceRef": "main",
   "releasedRef": "v1",
