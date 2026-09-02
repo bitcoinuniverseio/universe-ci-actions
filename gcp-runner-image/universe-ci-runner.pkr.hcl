@@ -100,7 +100,7 @@ build {
   }
 
   provisioner "shell" {
-    execute_command = "chmod +x {{ .Path }}; sudo -E {{ .Path }}"
+    execute_command = "chmod +x {{ .Path }}; sudo -E env NODE_VERSION='${var.node_version}' NPM_VERSION='${var.npm_version}' RUST_VERSION='${var.rust_version}' DOCKER_VERSION='${var.docker_version}' PYTHON_VERSION='${var.python_version}' {{ .Path }}"
     script          = "verify.sh"
   }
 
