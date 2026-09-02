@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "name": "runner",
+      "builder_type": "googlecompute",
+      "build_time": 1788390771,
+      "files": null,
+      "artifact_id": "universe-ci-runner-f5c436a96fd2",
+      "packer_run_uuid": "c1e58cc0-6db3-10d6-a93f-12f3bcb773b6",
+      "custom_data": null
+    }
+  ],
+  "last_run_uuid": "c1e58cc0-6db3-10d6-a93f-12f3bcb773b6"
+}
