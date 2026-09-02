@@ -65,12 +65,13 @@ variable "build_on_spot" {
 }
 
 locals {
-  # The image name pins every version it contains, so a toolchain change
-  # produces a new immutable image rather than mutating one in place.
+  # The image name pins every version it contains and the commit that built
+  # it, so any change produces a new immutable image rather than mutating one
+  # in place.
   version_stamp = substr(sha256(join("-", [
     var.node_version, var.npm_version, var.rust_version,
     var.docker_version, var.python_version,
-    var.runner_version, var.playwright_version,
+    var.runner_version, var.playwright_version, var.git_commit,
   ])), 0, 12)
 }
 
