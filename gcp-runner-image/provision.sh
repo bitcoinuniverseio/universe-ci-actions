@@ -71,7 +71,9 @@ chmod -R a+rx /usr/local/cargo/bin
 # the manager's DefaultEnvironment.
 printf 'export RUSTUP_HOME=/usr/local/rustup\nexport CARGO_HOME=/usr/local/cargo\nexport PATH=$PATH:/usr/local/cargo/bin\n' \
   > /etc/profile.d/rust.sh
-grep -vE '^(RUSTUP_HOME|CARGO_HOME|PATH)=' /etc/environment > /etc/environment.tmp
+# sed -i rather than grep -v: with pipefail, grep exits 1 when a key is absent
+# from /etc/environment, which is a normal state on a stock GCE image.
+sed -i -E '/^(RUSTUP_HOME|CARGO_HOME|PATH)=/d' /etc/environment
 cat >> /etc/environment.tmp <<'ENVEOF'
 RUSTUP_HOME=/usr/local/rustup
 CARGO_HOME=/usr/local/cargo
