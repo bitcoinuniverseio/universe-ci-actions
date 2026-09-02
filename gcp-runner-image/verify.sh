@@ -42,6 +42,7 @@ systemctl is-enabled universe-runner.service >/dev/null 2>&1 && echo "ok    univ
 systemctl is-enabled google-cloud-ops-agent >/dev/null 2>&1 && echo "ok    ops agent enabled" || { echo "FAIL  ops agent not enabled" >&2; fail=1; }
 id runner >/dev/null 2>&1 && id -nG runner | grep -qw docker && echo "ok    runner user in docker group" || { echo "FAIL  runner user misconfigured" >&2; fail=1; }
 grep -q '^PLAYWRIGHT_BROWSERS_PATH=/ms-playwright$' /etc/environment && echo "ok    PLAYWRIGHT_BROWSERS_PATH exported" || { echo "FAIL  PLAYWRIGHT_BROWSERS_PATH missing" >&2; fail=1; }
+[ "$(stat -c %U /ms-playwright)" = runner ] && echo "ok    /ms-playwright owned by runner" || { echo "FAIL  /ms-playwright not owned by runner" >&2; fail=1; }
 [ -x /opt/universe-runner/bootstrap.sh ] && echo "ok    bootstrap present" || { echo "FAIL  bootstrap missing" >&2; fail=1; }
 
 exit "$fail"
