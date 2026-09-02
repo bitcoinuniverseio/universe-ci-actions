@@ -47,12 +47,11 @@ variable "python_version" {
 }
 
 # The build host follows the same capacity rule as the runners it produces.
-# PREEMPTIBLE_CPUS is 0 while the project is on the free trial, so a
-# preemptible build host cannot start at all. Set this back to true once Spot
-# quota exists: an image build is interruptible work that belongs on Spot.
+# Spot quota in us-central1 was approved on 2026-09-02 (32 vCPUs to start), so
+# an interruptible image build belongs back on Spot.
 variable "build_on_spot" {
   type    = bool
-  default = false
+  default = true
 }
 
 locals {
