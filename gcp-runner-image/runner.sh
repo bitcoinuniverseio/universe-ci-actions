@@ -39,6 +39,10 @@ echo "${RUNNER_VERSION}" > /opt/actions-runner/.universe-runner-version
 install -d -m 0755 /ms-playwright
 export PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium
+# The runner user owns the browser tree: Playwright takes a directory lock
+# under it even when the browser is already present, and a read-only tree
+# makes that lock wait for minutes and then fail.
+chown -R runner:runner /ms-playwright
 chmod -R a+rX /ms-playwright
 sed -i -E '/^PLAYWRIGHT_BROWSERS_PATH=/d' /etc/environment
 echo 'PLAYWRIGHT_BROWSERS_PATH=/ms-playwright' >> /etc/environment
