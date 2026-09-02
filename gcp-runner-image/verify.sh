@@ -23,7 +23,9 @@ present() {
 check node "v${NODE_VERSION}" "$(node --version)"
 check npm  "${NPM_VERSION}"   "$(npm --version)"
 check docker "${DOCKER_VERSION}" "$(docker --version | sed -E 's/.*version ([0-9.]+).*/\1/')"
-check rustc  "${RUST_VERSION}"   "$(/usr/local/cargo/bin/rustc --version | awk '{print $2}')"
+# HOME=/root for the same sudo reason as in provision.sh: the rustup shim
+# aborts when HOME does not match the euid's home directory.
+check rustc  "${RUST_VERSION}"   "$(env HOME=/root /usr/local/cargo/bin/rustc --version | awk '{print $2}')"
 
 for tool in git gh jq curl wget unzip cmake pkg-config deno uv pnpm yarn cargo docker-compose; do
   case "$tool" in

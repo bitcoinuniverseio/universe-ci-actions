@@ -56,8 +56,10 @@ curl -fsSL https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh
 
 # Rust, pinned, system wide so every user sees the same toolchain.
 export RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+# HOME=/root because rustup-init aborts when HOME and the euid's home differ,
+# which is exactly what Packer's sudo -E produces (HOME stays /home/packer).
 curl -fsSL https://sh.rustup.rs \
-  | sh -s -- -y --no-modify-path --profile minimal \
+  | env HOME=/root sh -s -- -y --no-modify-path --profile minimal \
       --default-toolchain "${RUST_VERSION}" \
       --component clippy --component rustfmt
 chmod -R a+rx /usr/local/cargo/bin
