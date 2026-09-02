@@ -3,6 +3,8 @@
 # that boots but is missing a toolchain would show up as a job-time failure on
 # every runner it produces, so it is caught here instead.
 set -euo pipefail
+export RUSTUP_HOME="${RUSTUP_HOME:-/usr/local/rustup}"
+export CARGO_HOME="${CARGO_HOME:-/usr/local/cargo}"
 fail=0
 check() {
   local label="$1" expected="$2" actual="$3"

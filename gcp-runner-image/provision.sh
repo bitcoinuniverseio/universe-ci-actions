@@ -61,8 +61,24 @@ curl -fsSL https://sh.rustup.rs \
       --default-toolchain "${RUST_VERSION}" \
       --component clippy --component rustfmt
 chmod -R a+rx /usr/local/cargo/bin
+
+# The rustc on PATH is a rustup shim: without RUSTUP_HOME it looks in the
+# invoking user's home and reports no default toolchain. Login shells get the
+# exports from profile.d; the GitHub Actions runner reads /etc/environment into
+# the job env; and the runner agent boots as a systemd service, which inherits
+# the manager's DefaultEnvironment.
 printf 'export RUSTUP_HOME=/usr/local/rustup\nexport CARGO_HOME=/usr/local/cargo\nexport PATH=$PATH:/usr/local/cargo/bin\n' \
   > /etc/profile.d/rust.sh
+grep -vE '^(RUSTUP_HOME|CARGO_HOME|PATH)=' /etc/environment > /etc/environment.tmp
+cat >> /etc/environment.tmp <<'ENVEOF'
+RUSTUP_HOME=/usr/local/rustup
+CARGO_HOME=/usr/local/cargo
+PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+ENVEOF
+mv /etc/environment.tmp /etc/environment
+mkdir -p /etc/systemd/system.conf.d
+printf '[Manager]\nDefaultEnvironment=RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo\n' \
+  > /etc/systemd/system.conf.d/universe-ci-rust.conf
 
 # Keep boot minimal. Nothing below earns its start-up cost on an ephemeral
 # runner that lives for the length of one job.
