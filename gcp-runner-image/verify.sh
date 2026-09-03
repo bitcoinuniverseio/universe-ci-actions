@@ -23,7 +23,7 @@ check npm  "${NPM_VERSION}"   "$(npm --version)"
 check docker "${DOCKER_VERSION}" "$(docker --version | sed -E 's/.*version ([0-9.]+).*/\1/')"
 check rustc  "${RUST_VERSION}"   "$(/usr/local/cargo/bin/rustc --version | awk '{print $2}')"
 
-for tool in git gh jq curl wget unzip cmake pkg-config deno uv pnpm yarn cargo docker-compose; do
+for tool in git gh jq curl wget unzip cmake pkg-config clang deno uv pnpm yarn cargo docker-compose; do
   case "$tool" in
     cargo)          command -v /usr/local/cargo/bin/cargo >/dev/null && echo "ok    cargo present" || { echo "FAIL  cargo missing" >&2; fail=1; } ;;
     docker-compose) docker compose version >/dev/null 2>&1 && echo "ok    docker compose present" || { echo "FAIL  docker compose missing" >&2; fail=1; } ;;

@@ -6,7 +6,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates curl wget gnupg git jq unzip zip xz-utils \
-  build-essential cmake pkg-config libssl-dev
+  build-essential cmake pkg-config libssl-dev clang lld llvm
 
 # GitHub CLI. Used by the router and by release workflows.
 mkdir -p /etc/apt/keyrings

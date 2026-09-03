@@ -26,7 +26,7 @@ pinned to the versions AGENTS.md requires.
 | Playwright Chromium | 1.62.1 | `/ms-playwright`, owned by the runner user |
 | PowerShell | 7.x | workflows that declare `shell: pwsh` |
 | Cloud Ops agent | latest at build | ships runner and bootstrap logs before the VM is deleted |
-| git, gh, jq, cmake, build-essential, OpenSSL headers | distro | used across the fleet |
+| git, gh, jq, cmake, clang, lld, build-essential, OpenSSL headers | distro | used across the fleet; clang for WASM and native crates |
 
 `runner.sh` adds the `runner` user (passwordless sudo, docker group), the
 runner agent, Playwright, the Ops agent, and `universe-runner.service`, whose
