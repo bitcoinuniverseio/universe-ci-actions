@@ -3,11 +3,12 @@ import {
   DOCKER_VERSION,
   appendCommandValue,
   dockerCommand,
+  hostCandidates,
   requiredInput,
   sanitizedIdentity,
+  selectReachableHost,
   validateFixtureInputs,
-  waitForMysql,
-  waitForTcp
+  waitForMysql
 } from "./lib.mjs";
 
 let container;
@@ -26,7 +27,7 @@ async function main() {
     user: process.env.INPUT_USER?.trim() || "universe_ci",
     password: requiredInput("password"),
     rootPassword: requiredInput("root_password"),
-    connectionHost: process.env.INPUT_CONNECTION_HOST?.trim() || "127.0.0.1"
+    connectionHost: process.env.INPUT_CONNECTION_HOST?.trim() || "auto"
   };
   validateFixtureInputs(inputs);
 
@@ -50,9 +51,13 @@ async function main() {
 
   const port = dockerCommand(platform, ["port", container, "3306/tcp"], { capture: true }).stdout.trim().match(/:(\d+)$/)?.[1];
   if (!port) throw new Error(`Docker did not report a host port for ${container}`);
-  const host = inputs.connectionHost;
   await waitForMysql(platform, container, inputs.rootPassword);
-  await waitForTcp(host, Number(port));
+  // The fixture is healthy. Now prove the caller's route to it: a runner on
+  // the Docker host reaches the published port on its own loopback, a runner
+  // that is itself a container reaches it through the bridge gateway or
+  // host.docker.internal. The host that answered is the host published.
+  const host = await selectReachableHost(hostCandidates(inputs.connectionHost, platform), Number(port), 60, "MySQL fixture");
+  console.log(`MySQL fixture ${container} reachable at ${host}:${port}`);
 
   appendCommandValue(process.env.GITHUB_OUTPUT, "host", host);
   appendCommandValue(process.env.GITHUB_OUTPUT, "port", port);
