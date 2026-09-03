@@ -29,6 +29,10 @@ tar -xzf "/tmp/${RUNNER_TGZ}" -C /opt/actions-runner
 rm -f "/tmp/${RUNNER_TGZ}"
 /opt/actions-runner/bin/installdependencies.sh
 chown -R runner:runner /opt/actions-runner
+# The runner prepends this file to every job PATH, the way GitHub-hosted
+# images expose ~/.local/bin (pip --user, poetry) and the shared cargo bin.
+echo "/home/runner/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /opt/actions-runner/.path
+chown runner:runner /opt/actions-runner/.path
 # The runner reads this into every job environment.
 echo "${RUNNER_VERSION}" > /opt/actions-runner/.universe-runner-version
 
