@@ -28,7 +28,11 @@ export function validateFixtureInputs(inputs) {
   if (!/^[A-Za-z0-9_]{1,64}$/.test(inputs.database)) throw new Error("Database name is invalid");
   if (!/^[A-Za-z0-9_]{1,32}$/.test(inputs.user)) throw new Error("Database user is invalid");
   if (inputs.user.toLowerCase() === "root") throw new Error("The fixture user must not be root");
-  if (!/^[A-Za-z0-9.:-]{1,253}$/.test(inputs.connectionHost)) throw new Error("Connection host is invalid");
+  validateConnectionHost(inputs.connectionHost);
+}
+
+export function validateConnectionHost(connectionHost) {
+  if (!/^[A-Za-z0-9.:-]{1,253}$/.test(connectionHost)) throw new Error("Connection host is invalid");
 }
 
 export function command(program, args, options = {}) {
@@ -55,19 +59,65 @@ export function appendCommandValue(path, name, value) {
   appendFileSync(path, `${name}=${value}\n`, "utf8");
 }
 
-export async function waitForTcp(host, port, attempts = 60) {
+/**
+ * The address of the Docker bridge as seen from a container on it. When the
+ * runner itself is a container, the host's published ports are reached
+ * through this gateway (or through `host.docker.internal`, which maps to it
+ * on a daemon started with `host-gateway`), never through the container's
+ * own loopback.
+ */
+export function dockerBridgeGateway(platform) {
+  const result = dockerCommand(platform, [
+    "network", "inspect", "bridge", "--format", "{{(index .IPAM.Config 0).Gateway}}"
+  ], { capture: true, allowFailure: true });
+  const gateway = result.status === 0 ? result.stdout.trim() : "";
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(gateway) ? gateway : null;
+}
+
+/**
+ * The hosts a caller may reach the fixture through, in the order they are
+ * tried. An explicit `connection_host` is used as given and nothing else is
+ * tried, so a caller that names the wrong topology fails loudly. `auto`
+ * tries the runner's own loopback first (a runner running natively on the
+ * Docker host), then the bridge gateway and `host.docker.internal` (a runner
+ * that is itself a container).
+ */
+export function hostCandidates(requested, platform) {
+  if (requested && requested !== "auto") return [requested];
+  const candidates = ["127.0.0.1"];
+  const gateway = dockerBridgeGateway(platform);
+  if (gateway) candidates.push(gateway);
+  candidates.push("host.docker.internal");
+  return candidates;
+}
+
+export function tcpReachable(host, port, timeoutMs = 1000) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("timeout", () => { socket.destroy(); resolve(false); });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+/**
+ * Wait until one of the candidate hosts accepts a TCP connection on the
+ * published port and return that host. The fixture is already healthy inside
+ * its container when this runs, so this proves the caller's route to it.
+ */
+export async function selectReachableHost(candidates, port, attempts = 60, service = "fixture") {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const connected = await new Promise((resolve) => {
-      const socket = net.createConnection({ host, port });
-      socket.setTimeout(1000);
-      socket.once("connect", () => { socket.destroy(); resolve(true); });
-      socket.once("timeout", () => { socket.destroy(); resolve(false); });
-      socket.once("error", () => resolve(false));
-    });
-    if (connected) return;
+    for (const host of candidates) {
+      if (await tcpReachable(host, port)) return host;
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`MySQL fixture did not accept TCP connections on ${host}:${port}`);
+  throw new Error(`${service} did not accept TCP connections on any of ${candidates.map((host) => `${host}:${port}`).join(", ")}`);
+}
+
+export async function waitForTcp(host, port, attempts = 60) {
+  await selectReachableHost([host], port, attempts, "MySQL fixture");
 }
 
 export async function waitForMysql(platform, container, rootPassword, attempts = 90) {
