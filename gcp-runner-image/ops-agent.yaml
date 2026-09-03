@@ -1,0 +1,39 @@
+# Google Cloud Ops Agent configuration for Universe runner VMs.
+# Everything below reaches Cloud Logging before the VM is deleted.
+logging:
+  receivers:
+    runner_bootstrap:
+      type: files
+      include_paths:
+        - /var/log/universe-runner.log
+    runner_diag:
+      type: files
+      include_paths:
+        - /opt/actions-runner/_diag/*.log
+    journal:
+      type: systemd_journald
+  processors:
+    redact:
+      type: modify_fields
+      fields:
+        jsonPayload.message:
+          # Belt and braces: the bootstrap never prints the JIT config, but a
+          # runner diagnostic line quoting an Authorization header would.
+          # Ops Agent modify_fields has no regex replace, so the safety here is
+          # structural (nothing logs the config), and this processor only tags.
+          static_value: null
+  service:
+    pipelines:
+      runner:
+        receivers: [runner_bootstrap, runner_diag]
+      system:
+        receivers: [journal]
+metrics:
+  receivers:
+    hostmetrics:
+      type: hostmetrics
+      collection_interval: 30s
+  service:
+    pipelines:
+      default_pipeline:
+        receivers: [hostmetrics]

@@ -1,0 +1,18 @@
+[Unit]
+Description=Universe ephemeral GitHub Actions runner (one job, then power off)
+After=network-online.target docker.service google-guest-agent.service
+Wants=network-online.target docker.service
+ConditionPathExists=/opt/actions-runner/run.sh
+
+[Service]
+Type=simple
+ExecStart=/opt/universe-runner/bootstrap.sh
+Restart=no
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
