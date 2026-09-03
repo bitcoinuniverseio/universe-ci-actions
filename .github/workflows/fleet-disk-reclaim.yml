@@ -22,10 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03,
-                 universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06,
-                 universe-runner-01, universe-runner-02, universe-runner-03, universe-runner-04,
-                 universe-runner-05, universe-runner-06, universe-runner-07, universe-runner-08]
+        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03, universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06, universe-linux-ultra-07, universe-linux-ultra-08, universe-linux-ultra-09, universe-linux-ultra-10, universe-linux-ultra-11, universe-linux-ultra-12, universe-linux-ultra-13, universe-linux-ultra-14, universe-linux-ultra-15, universe-linux-ultra-16, universe-linux-ultra-17, universe-linux-ultra-18, universe-linux-ultra-19, universe-linux-ultra-20, universe-linux-ultra-21, universe-linux-ultra-22, universe-linux-ultra-23, universe-linux-ultra-24, universe-linux-ultra-25, universe-linux-ultra-26, universe-linux-ultra-27, universe-linux-ultra-28, universe-linux-ultra-29, universe-linux-ultra-30, universe-linux-ultra-31, universe-linux-ultra-32, universe-linux-ultra-33, universe-linux-ultra-34, universe-linux-ultra-35, universe-linux-ultra-36, universe-linux-ultra-37, universe-linux-ultra-38, universe-linux-ultra-39, universe-linux-ultra-40, universe-linux-ultra-41, universe-linux-ultra-42, universe-linux-ultra-43, universe-linux-ultra-44, universe-linux-ultra-45, universe-linux-ultra-46, universe-linux-ultra-47, universe-linux-ultra-48, universe-linux-ultra-49, universe-linux-ultra-50, universe-linux-ultra-51, universe-linux-ultra-52, universe-linux-ultra-53, universe-linux-ultra-54, universe-linux-ultra-55, universe-linux-ultra-56, universe-linux-ultra-57, universe-linux-ultra-58, universe-linux-ultra-59, universe-linux-ultra-60, universe-linux-ultra-61, universe-linux-ultra-62, universe-linux-ultra-63, universe-linux-ultra-64]
     runs-on: [self-hosted, "${{ matrix.runner }}"]
     timeout-minutes: 20
     steps:
