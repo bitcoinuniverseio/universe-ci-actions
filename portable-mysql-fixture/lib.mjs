@@ -28,6 +28,7 @@ export function validateFixtureInputs(inputs) {
   if (!/^[A-Za-z0-9_]{1,64}$/.test(inputs.database)) throw new Error("Database name is invalid");
   if (!/^[A-Za-z0-9_]{1,32}$/.test(inputs.user)) throw new Error("Database user is invalid");
   if (inputs.user.toLowerCase() === "root") throw new Error("The fixture user must not be root");
+  if (!/^[A-Za-z0-9.:-]{1,253}$/.test(inputs.connectionHost)) throw new Error("Connection host is invalid");
 }
 
 export function command(program, args, options = {}) {
