@@ -38,6 +38,8 @@ check runner "${RUNNER_VERSION}" "$(cat /opt/actions-runner/.universe-runner-ver
 check playwright "${PLAYWRIGHT_VERSION}" "$(cat /ms-playwright/.universe-playwright-version)"
 [ -x /opt/actions-runner/run.sh ] && echo "ok    actions runner present" || { echo "FAIL  actions runner missing" >&2; fail=1; }
 ls -d /ms-playwright/chromium-* >/dev/null 2>&1 && echo "ok    chromium present" || { echo "FAIL  chromium missing" >&2; fail=1; }
+ls -d /ms-playwright/firefox-* >/dev/null 2>&1 && echo "ok    firefox present" || { echo "FAIL  firefox missing" >&2; fail=1; }
+ls -d /ms-playwright/webkit-* >/dev/null 2>&1 && echo "ok    webkit present" || { echo "FAIL  webkit missing" >&2; fail=1; }
 systemctl is-enabled universe-runner.service >/dev/null 2>&1 && echo "ok    universe-runner.service enabled" || { echo "FAIL  universe-runner.service not enabled" >&2; fail=1; }
 systemctl is-enabled google-cloud-ops-agent >/dev/null 2>&1 && echo "ok    ops agent enabled" || { echo "FAIL  ops agent not enabled" >&2; fail=1; }
 id runner >/dev/null 2>&1 && id -nG runner | grep -qw docker && echo "ok    runner user in docker group" || { echo "FAIL  runner user misconfigured" >&2; fail=1; }
@@ -47,5 +49,12 @@ command -v pwsh >/dev/null 2>&1 && pwsh -NoProfile -Command '$PSVersionTable.PSV
 [ "$(stat -c %U /usr/local/rustup)" = runner ] && [ "$(stat -c %U /usr/local/cargo)" = runner ] && echo "ok    rust toolchain owned by runner" || { echo "FAIL  rust toolchain not owned by runner" >&2; fail=1; }
 grep -q 'mirror.gcr.io' /etc/docker/daemon.json && echo "ok    docker hub mirror configured" || { echo "FAIL  docker hub mirror missing" >&2; fail=1; }
 [ -x /opt/universe-runner/bootstrap.sh ] && echo "ok    bootstrap present" || { echo "FAIL  bootstrap missing" >&2; fail=1; }
+if LC_ALL=C grep -q $'\r' /opt/universe-runner/bootstrap.sh; then
+  echo "FAIL  bootstrap contains CR bytes" >&2
+  fail=1
+else
+  echo "ok    bootstrap uses LF line endings"
+fi
+head -n 1 /opt/universe-runner/bootstrap.sh | grep -qx '#!/usr/bin/env bash' && echo "ok    bootstrap interpreter valid" || { echo "FAIL  bootstrap interpreter invalid" >&2; fail=1; }
 
 exit "$fail"

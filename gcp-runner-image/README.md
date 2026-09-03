@@ -23,7 +23,7 @@ pinned to the versions AGENTS.md requires.
 | Python | 3.12 + uv | distro default, exact interpreters via uv |
 | Docker | 29.7.2 + buildx, compose | AGENTS.md pin |
 | GitHub Actions runner | 2.337.0 | `/opt/actions-runner`, no update download at boot |
-| Playwright Chromium | 1.62.1 | `/ms-playwright`, owned by the runner user |
+| Playwright browsers | 1.62.1 | Chromium, Firefox, and WebKit in `/ms-playwright`, owned by the runner user |
 | PowerShell | 7.x | workflows that declare `shell: pwsh` |
 | Cloud Ops agent | latest at build | ships runner and bootstrap logs before the VM is deleted |
 | Docker Hub mirror | mirror.gcr.io | anonymous Docker Hub limits are per NAT address |
@@ -36,15 +36,33 @@ runner agent, Playwright, the Ops agent, and `universe-runner.service`, whose
 ## Build
 
 ```
+node --test verify-source.test.mjs
+node verify-source.mjs
+node --test verify-browser-bundle-source.test.mjs
+node verify-browser-bundle-source.mjs
 packer init .
 packer build -var-file=versions.pkrvars.hcl -var git_commit=$(git rev-parse --short HEAD) .
 ```
 
-`verify.sh` runs inside the build and fails it if any pinned version or
-runner-host piece drifts, so a bad image never reaches a runner. The image
-name hashes every pinned version and the build commit, so a change produces
-a new immutable image rather than mutating one in place. Image labels carry
-the runner version, git commit and build date.
+Build only from a fresh, clean checkout. Root Git attributes keep every Linux
+image input on LF line endings, including on Windows. `verify-source.mjs`
+checks the source before Packer starts. `verify.sh` checks the installed boot
+script again inside the image and rejects CR bytes or an invalid interpreter.
+Together these gates prevent a copied `bash\r` interpreter from reaching a
+runner VM.
+
+`verify.sh` also fails the build if any pinned version or runner-host piece
+drifts, so a bad image never reaches a runner. The image name hashes every
+pinned version and the build commit, so a change produces a new immutable
+image rather than mutating one in place. Image labels carry the runner version,
+git commit and build date.
+
+Playwright 1.62.1 installs Chromium, Firefox, WebKit, and their Linux libraries
+during the image build. `verify-browser-bundle-source.mjs` rejects a source
+change that drops an engine or removes `--with-deps`. `verify.sh` then proves
+that each installed browser directory exists in `/ms-playwright`. Jobs that use
+the same Playwright version reuse those files through the system-wide
+`PLAYWRIGHT_BROWSERS_PATH` and do not run a browser download step.
 
 The build host is a Spot `c3d-highcpu-8`: an image build is interruptible
 work.
@@ -59,3 +77,10 @@ Terraform of `bitcoinuniverseio/.github-private` to the new name), dispatch
 Control plane, runner classes and operations live in
 `bitcoinuniverseio/.github-private` under `infra/gcp/` and
 `docs/gcp-runner-platform.md`.
+
+If new VMs stay in the booting state and their serial console reports a
+`bash\r` interpreter, stop the promotion. Create a zero-downtime control-plane
+revision that pins the previous READY runner image, wait for 100 percent
+traffic on that revision, then prove that a canary job registers and starts.
+Keep both images until the source fix is merged and a replacement image passes
+the source gate, image verification, and canary.

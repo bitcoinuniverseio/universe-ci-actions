@@ -29,16 +29,20 @@ tar -xzf "/tmp/${RUNNER_TGZ}" -C /opt/actions-runner
 rm -f "/tmp/${RUNNER_TGZ}"
 /opt/actions-runner/bin/installdependencies.sh
 chown -R runner:runner /opt/actions-runner
+# The runner prepends this file to every job PATH, the way GitHub-hosted
+# images expose ~/.local/bin (pip --user, poetry) and the shared cargo bin.
+echo "/home/runner/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" > /opt/actions-runner/.path
+chown runner:runner /opt/actions-runner/.path
 # The runner reads this into every job environment.
 echo "${RUNNER_VERSION}" > /opt/actions-runner/.universe-runner-version
 
-# Playwright Chromium, pinned to the version the organization's packages
-# declare. PLAYWRIGHT_BROWSERS_PATH is set system wide so a job that runs
-# `npx playwright install chromium` at the same version finds it already
-# present and downloads nothing.
+# Playwright browsers, pinned to the version the organization's packages
+# declare. --with-deps installs every required Linux library while the image
+# is built. PLAYWRIGHT_BROWSERS_PATH is set system wide so jobs using this
+# version find Chromium, Firefox, and WebKit without downloading anything.
 install -d -m 0755 /ms-playwright
 export PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium
+npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium firefox webkit
 # The runner user owns the browser tree: Playwright takes a directory lock
 # under it even when the browser is already present, and a read-only tree
 # makes that lock wait for minutes and then fail.
