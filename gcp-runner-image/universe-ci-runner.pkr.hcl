@@ -5,7 +5,7 @@
 # files across the organization, so the image carries what CI actually uses
 # and nothing else. runner.sh then adds the GitHub Actions runner agent, the
 # boot service that fetches a one-time JIT configuration from the control
-# plane, Playwright Chromium, and the Cloud Logging agent.
+# plane, Playwright Chromium, Firefox, WebKit, and the Cloud Logging agent.
 #
 # Build:
 #   packer init . && packer build -var-file=versions.pkrvars.hcl -var git_commit=$(git rev-parse --short HEAD) .
