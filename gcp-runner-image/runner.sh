@@ -51,6 +51,12 @@ chmod -R a+rX /ms-playwright
 sed -i -E '/^PLAYWRIGHT_BROWSERS_PATH=/d' /etc/environment
 echo 'PLAYWRIGHT_BROWSERS_PATH=/ms-playwright' >> /etc/environment
 echo "${PLAYWRIGHT_VERSION}" > /ms-playwright/.universe-playwright-version
+# Lighthouse, chrome-launcher and puppeteer-style tools look for google-chrome
+# on PATH; point it at the Chromium Playwright just installed.
+chrome_bin="$(find /ms-playwright -maxdepth 3 -type f -name chrome -path '*chromium-*/chrome-linux*' | head -n 1)"
+: "${chrome_bin:?no Playwright Chromium binary found}"
+ln -sf "${chrome_bin}" /usr/local/bin/google-chrome
+ln -sf "${chrome_bin}" /usr/local/bin/chromium
 rm -rf /root/.npm /root/.cache
 
 # PowerShell 7: many organization workflows declare shell: pwsh.
