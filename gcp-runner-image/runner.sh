@@ -56,6 +56,11 @@ echo 'PLAYWRIGHT_BROWSERS_PATH=/ms-playwright' >> /etc/environment
 sed -i -E '/^PATH=/d' /etc/environment
 echo 'PATH="/home/runner/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"' >> /etc/environment
 echo 'CHROME_PATH=/usr/local/bin/google-chrome' >> /etc/environment
+
+# PostgreSQL is installed for jobs that start it themselves (bitcoin-indexer
+# runs systemctl start postgresql). It must not hold port 5432 at boot: other
+# jobs publish their own Postgres container on that port.
+systemctl disable --now postgresql >/dev/null 2>&1 || true
 echo "${PLAYWRIGHT_VERSION}" > /ms-playwright/.universe-playwright-version
 # Lighthouse, chrome-launcher and puppeteer-style tools look for google-chrome
 # on PATH; point it at the Chromium Playwright just installed.
