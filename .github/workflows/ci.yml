@@ -25,3 +25,61 @@ jobs:
       - name: Check the Docker pin
         shell: bash
         run: test "$(docker version --format '{{.Server.Version}}')" = '29.7.2'
+
+  service-fixtures:
+    name: Portable service fixtures prove their route
+    runs-on: [self-hosted, linux, x64, universe, gcp, universe-gcp-medium]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./universe-docker-env
+      - id: mysql
+        uses: ./portable-mysql-fixture
+        with:
+          image: mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+          database: universe_ci
+          user: universe_ci
+          password: fixture-only-password
+          root_password: fixture-only-root-password
+      - id: postgres
+        uses: ./portable-postgres-fixture
+        with:
+          image: postgres:17.7-bookworm@sha256:86e0b703649d7a792bd9243ee28afc9d8f7c6b2b5638077c9d6882d4d472bbfd
+          database: universe_ci
+          user: universe_ci
+          password: fixture-only-password
+      - id: redis
+        uses: ./portable-redis-fixture
+        with:
+          image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+      - name: Every fixture published a host that answers from this runner and nothing was hardcoded
+        shell: bash
+        env:
+          MYSQL_HOST: ${{ steps.mysql.outputs.host }}
+          MYSQL_PORT: ${{ steps.mysql.outputs.port }}
+          POSTGRES_HOST: ${{ steps.postgres.outputs.host }}
+          POSTGRES_PORT: ${{ steps.postgres.outputs.port }}
+          REDIS_URL: ${{ steps.redis.outputs.url }}
+        run: |
+          node --input-type=module -e '
+            import net from "node:net";
+            const probe = (host, port) => new Promise((resolve, reject) => {
+              const socket = net.createConnection({ host, port: Number(port) });
+              socket.setTimeout(3000);
+              socket.once("connect", () => { socket.destroy(); resolve(); });
+              socket.once("timeout", () => { socket.destroy(); reject(new Error(`${host}:${port} timed out`)); });
+              socket.once("error", reject);
+            });
+            const redis = new URL(process.env.REDIS_URL);
+            for (const [name, host, port] of [
+              ["mysql", process.env.MYSQL_HOST, process.env.MYSQL_PORT],
+              ["postgres", process.env.POSTGRES_HOST, process.env.POSTGRES_PORT],
+              ["redis", redis.hostname, redis.port],
+            ]) {
+              if (!host || !port) throw new Error(`${name} fixture published no host or port`);
+              await probe(host, port);
+              console.log(`${name} answers at ${host}:${port}`);
+            }
+          '
