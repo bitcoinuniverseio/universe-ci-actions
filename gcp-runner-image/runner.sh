@@ -49,6 +49,20 @@ echo 'PLAYWRIGHT_BROWSERS_PATH=/ms-playwright' >> /etc/environment
 echo "${PLAYWRIGHT_VERSION}" > /ms-playwright/.universe-playwright-version
 rm -rf /root/.npm /root/.cache
 
+# PowerShell 7: many organization workflows declare shell: pwsh.
+curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb
+dpkg -i /tmp/packages-microsoft-prod.deb
+rm -f /tmp/packages-microsoft-prod.deb
+apt-get update
+apt-get install -y --no-install-recommends powershell
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+
+# The runner user owns the shared Rust toolchain: workflows run rustup and
+# cargo as that user, and a root-owned RUSTUP_HOME refuses to install a
+# target or a component.
+chown -R runner:runner /usr/local/rustup /usr/local/cargo
+
 # Cloud Logging and Monitoring agent. Runner diagnostics, the bootstrap log
 # and the journal survive the VM, which is deleted the moment the job ends.
 curl -fsSL https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh \

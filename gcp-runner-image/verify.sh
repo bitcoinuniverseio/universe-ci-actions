@@ -43,6 +43,8 @@ systemctl is-enabled google-cloud-ops-agent >/dev/null 2>&1 && echo "ok    ops a
 id runner >/dev/null 2>&1 && id -nG runner | grep -qw docker && echo "ok    runner user in docker group" || { echo "FAIL  runner user misconfigured" >&2; fail=1; }
 grep -q '^PLAYWRIGHT_BROWSERS_PATH=/ms-playwright$' /etc/environment && echo "ok    PLAYWRIGHT_BROWSERS_PATH exported" || { echo "FAIL  PLAYWRIGHT_BROWSERS_PATH missing" >&2; fail=1; }
 [ "$(stat -c %U /ms-playwright)" = runner ] && echo "ok    /ms-playwright owned by runner" || { echo "FAIL  /ms-playwright not owned by runner" >&2; fail=1; }
+command -v pwsh >/dev/null 2>&1 && pwsh -NoProfile -Command '$PSVersionTable.PSVersion.Major' | grep -q '^7' && echo "ok    pwsh 7 present" || { echo "FAIL  pwsh 7 missing" >&2; fail=1; }
+[ "$(stat -c %U /usr/local/rustup)" = runner ] && [ "$(stat -c %U /usr/local/cargo)" = runner ] && echo "ok    rust toolchain owned by runner" || { echo "FAIL  rust toolchain not owned by runner" >&2; fail=1; }
 [ -x /opt/universe-runner/bootstrap.sh ] && echo "ok    bootstrap present" || { echo "FAIL  bootstrap missing" >&2; fail=1; }
 
 exit "$fail"

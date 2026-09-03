@@ -24,6 +24,7 @@ pinned to the versions AGENTS.md requires.
 | Docker | 29.7.2 + buildx, compose | AGENTS.md pin |
 | GitHub Actions runner | 2.337.0 | `/opt/actions-runner`, no update download at boot |
 | Playwright Chromium | 1.62.1 | `/ms-playwright`, owned by the runner user |
+| PowerShell | 7.x | workflows that declare `shell: pwsh` |
 | Cloud Ops agent | latest at build | ships runner and bootstrap logs before the VM is deleted |
 | git, gh, jq, cmake, build-essential, OpenSSL headers | distro | used across the fleet |
 
