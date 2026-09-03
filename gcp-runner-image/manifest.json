@@ -8,7 +8,16 @@
       "artifact_id": "universe-ci-runner-f5c436a96fd2",
       "packer_run_uuid": "c1e58cc0-6db3-10d6-a93f-12f3bcb773b6",
       "custom_data": null
+    },
+    {
+      "name": "runner",
+      "builder_type": "googlecompute",
+      "build_time": 1788393571,
+      "files": null,
+      "artifact_id": "universe-ci-runner-5f3efdb853c7",
+      "packer_run_uuid": "873b64c1-7d53-e002-e44e-8c1c989ee35d",
+      "custom_data": null
     }
   ],
-  "last_run_uuid": "c1e58cc0-6db3-10d6-a93f-12f3bcb773b6"
+  "last_run_uuid": "873b64c1-7d53-e002-e44e-8c1c989ee35d"
 }
