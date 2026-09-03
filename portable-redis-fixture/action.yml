@@ -1,22 +1,9 @@
-name: Portable MySQL fixture
-description: Start an isolated MySQL test fixture on certified Linux container builders, reachable from a native or a containerized runner.
+name: Portable Redis fixture
+description: Start an isolated Redis test fixture on certified Linux container builders, reachable from a native or a containerized runner.
 
 inputs:
   image:
-    description: MySQL image pinned by digest.
-    required: true
-  database:
-    description: Database created for the test job.
-    required: true
-  user:
-    description: Non-root database user created for the test job.
-    required: false
-    default: universe_ci
-  password:
-    description: Password for the non-root test user.
-    required: true
-  root_password:
-    description: Root password for the isolated fixture.
+    description: Redis image pinned by digest.
     required: true
   connection_host:
     description: >-
@@ -35,6 +22,8 @@ outputs:
     description: Dynamically allocated host port.
   container:
     description: Run-scoped container name.
+  url:
+    description: redis://host:port for the fixture.
 
 runs:
   using: node24

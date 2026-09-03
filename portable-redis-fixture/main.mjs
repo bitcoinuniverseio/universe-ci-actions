@@ -7,8 +7,8 @@ import {
   requiredInput,
   sanitizedIdentity,
   selectReachableHost,
-  validateFixtureInputs,
-  waitForPostgres
+  validateConnectionHost,
+  waitForRedis
 } from "./lib.mjs";
 
 let container;
@@ -23,39 +23,30 @@ async function main() {
 
   const inputs = {
     image: requiredInput("image"),
-    database: requiredInput("database"),
-    user: process.env.INPUT_USER?.trim() || "universe_ci",
-    password: requiredInput("password"),
     connectionHost: process.env.INPUT_CONNECTION_HOST?.trim() || "auto"
   };
-  validateFixtureInputs(inputs);
+  if (!inputs.image.includes("@sha256:")) throw new Error("Redis image must be pinned by sha256 digest");
+  validateConnectionHost(inputs.connectionHost);
 
-  container = `universe-ci-postgres-${sanitizedIdentity()}`;
-  const publishAddress = "127.0.0.1::5432";
+  container = `universe-ci-redis-${sanitizedIdentity()}`;
   dockerCommand(platform, [
     "run", "--detach", "--name", container,
     "--label", `universe.ci.run=${process.env.GITHUB_RUN_ID}`,
-    "--env", `POSTGRES_DB=${inputs.database}`,
-    "--env", `POSTGRES_USER=${inputs.user}`,
-    "--env", `POSTGRES_PASSWORD=${inputs.password}`,
-    "--publish", publishAddress,
+    "--publish", "127.0.0.1::6379",
     inputs.image
   ]);
   appendCommandValue(process.env.GITHUB_STATE, "container", container);
 
-  const port = dockerCommand(platform, ["port", container, "5432/tcp"], { capture: true }).stdout.trim().match(/:(\d+)$/)?.[1];
+  const port = dockerCommand(platform, ["port", container, "6379/tcp"], { capture: true }).stdout.trim().match(/:(\d+)$/)?.[1];
   if (!port) throw new Error(`Docker did not report a host port for ${container}`);
-  await waitForPostgres(platform, container, inputs.database, inputs.user);
-  // The fixture is healthy. Now prove the caller's route to it: a runner on
-  // the Docker host reaches the published port on its own loopback, a runner
-  // that is itself a container reaches it through the bridge gateway or
-  // host.docker.internal. The host that answered is the host published.
-  const host = await selectReachableHost(hostCandidates(inputs.connectionHost, platform), Number(port), 60, "PostgreSQL fixture");
-  console.log(`PostgreSQL fixture ${container} reachable at ${host}:${port}`);
+  await waitForRedis(platform, container);
+  const host = await selectReachableHost(hostCandidates(inputs.connectionHost, platform), Number(port), 60, "Redis fixture");
+  console.log(`Redis fixture ${container} reachable at ${host}:${port}`);
 
   appendCommandValue(process.env.GITHUB_OUTPUT, "host", host);
   appendCommandValue(process.env.GITHUB_OUTPUT, "port", port);
   appendCommandValue(process.env.GITHUB_OUTPUT, "container", container);
+  appendCommandValue(process.env.GITHUB_OUTPUT, "url", `redis://${host}:${port}`);
 }
 
 main().catch((error) => {
