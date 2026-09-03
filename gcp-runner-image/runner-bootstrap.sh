@@ -50,7 +50,9 @@ report() {
 install -d -m 0700 "$STATE_DIR"
 JIT_FILE="$STATE_DIR/jit.json"
 code=""
-for attempt in $(seq 1 24); do
+# Up to about forty minutes: the control plane answers 503 with Retry-After
+# while GitHub's REST budget is exhausted, and that budget returns hourly.
+for attempt in $(seq 1 160); do
   token="$(md "instance/service-accounts/default/identity?audience=${CONTROL_URL}&format=full" || true)"
   if [ -z "$token" ]; then log "no identity token yet (attempt $attempt)"; sleep 3; continue; fi
   code="$(curl -s -m 30 -o "$JIT_FILE" -w '%{http_code}' -X POST \
@@ -62,6 +64,7 @@ for attempt in $(seq 1 24); do
       log "control plane refused JIT request (http $code); powering off"
       report "jit refused $code" 2
       sleep 3; systemctl poweroff; exit 2 ;;
+    503) log "control plane waiting on GitHub (http 503), attempt $attempt"; sleep 15 ;;
     *) log "JIT request failed (http $code), attempt $attempt"; sleep $(( attempt < 8 ? attempt * 2 : 15 )) ;;
   esac
 done
