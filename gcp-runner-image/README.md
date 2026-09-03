@@ -23,7 +23,7 @@ pinned to the versions AGENTS.md requires.
 | Python | 3.12 + uv | distro default, exact interpreters via uv |
 | Docker | 29.7.2 + buildx, compose | AGENTS.md pin |
 | GitHub Actions runner | 2.337.0 | `/opt/actions-runner`, no update download at boot |
-| Playwright Chromium | 1.62.1 | `/ms-playwright`, owned by the runner user |
+| Playwright browsers | 1.62.1 | Chromium, Firefox, and WebKit in `/ms-playwright`, owned by the runner user |
 | PowerShell | 7.x | workflows that declare `shell: pwsh` |
 | Cloud Ops agent | latest at build | ships runner and bootstrap logs before the VM is deleted |
 | Docker Hub mirror | mirror.gcr.io | anonymous Docker Hub limits are per NAT address |
@@ -38,6 +38,8 @@ runner agent, Playwright, the Ops agent, and `universe-runner.service`, whose
 ```
 node --test verify-source.test.mjs
 node verify-source.mjs
+node --test verify-browser-bundle-source.test.mjs
+node verify-browser-bundle-source.mjs
 packer init .
 packer build -var-file=versions.pkrvars.hcl -var git_commit=$(git rev-parse --short HEAD) .
 ```
@@ -54,6 +56,13 @@ drifts, so a bad image never reaches a runner. The image name hashes every
 pinned version and the build commit, so a change produces a new immutable
 image rather than mutating one in place. Image labels carry the runner version,
 git commit and build date.
+
+Playwright 1.62.1 installs Chromium, Firefox, WebKit, and their Linux libraries
+during the image build. `verify-browser-bundle-source.mjs` rejects a source
+change that drops an engine or removes `--with-deps`. `verify.sh` then proves
+that each installed browser directory exists in `/ms-playwright`. Jobs that use
+the same Playwright version reuse those files through the system-wide
+`PLAYWRIGHT_BROWSERS_PATH` and do not run a browser download step.
 
 The build host is a Spot `c3d-highcpu-8`: an image build is interruptible
 work.

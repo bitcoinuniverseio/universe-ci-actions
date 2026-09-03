@@ -26,6 +26,8 @@ jobs:
         run: |
           node --test gcp-runner-image/verify-source.test.mjs
           node gcp-runner-image/verify-source.mjs
+          node --test gcp-runner-image/verify-browser-bundle-source.test.mjs
+          node gcp-runner-image/verify-browser-bundle-source.mjs
       - uses: ./universe-docker-env
       - name: Check the Docker pin
         shell: bash
