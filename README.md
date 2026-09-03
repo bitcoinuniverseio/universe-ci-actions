@@ -46,7 +46,7 @@ Pin by full commit SHA. See [docs/pinning.md](docs/pinning.md).
 
 | Action | Does | Reference |
 | --- | --- | --- |
-| `universe-node-env` | Resolves the pinned Node.js and npm from the runner's tool cache and reuses an exact, content-addressed dependency tree. Nothing is downloaded or installed on a warm runner. | [docs/universe-node-env.md](docs/universe-node-env.md) |
+| `universe-node-env` | Verifies the pinned Node.js and npm the host already carries and activates an exact, pre-warmed dependency tree as a private hard-link farm of the host's immutable snapshot. Nothing is downloaded or installed on a warm runner; a missing toolchain fails with a provisioning error. | [docs/universe-node-env.md](docs/universe-node-env.md) |
 | `universe-build-store` | Saves a build output once and restores it everywhere else, keyed by commit plus toolchain plus machine shape. Nothing is uploaded or metered. | [docs/universe-build-store.md](docs/universe-build-store.md) |
 | `universe-docker-env` | Ensures the runner has the pinned Docker Engine 29.7.2. | [docs/container-builds.md](docs/container-builds.md#universe-docker-env) |
 | `portable-container-build` | Builds a Linux image and optionally runs a smoke command inside it before cleanup. | [docs/container-builds.md](docs/container-builds.md#portable-container-build) |
@@ -67,12 +67,14 @@ It replaces all three of these:
     node-version-file: .nvmrc
     cache: npm                       # downloads a large npm store every job
 - run: npm install --global npm@X    # reinstalls the version already present
-- run: npm ci                        # reinstalls an unchanged dependency tree
+- run: npm ci                        # relinks an unchanged dependency tree
 ```
 
 Measured on `backend-apis` run 33329978544: those three steps cost 282 seconds
-per job and changed nothing. Node was already in the runner's tool cache and
-resolved in 0.4 seconds.
+per job and changed nothing. On 2026-09-03 `forked-felines` paid 456 to 524
+seconds per job for `npm ci` on the loaded PowerVPS fleet. The same tree now
+activates as a hard-link farm of the host's immutable snapshot in 2 seconds on
+Primcast and 8 to 12 seconds on that loaded host, with zero network downloads.
 
 ## Why these actions live here
 

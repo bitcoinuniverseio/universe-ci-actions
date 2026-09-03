@@ -1,8 +1,9 @@
 name: Universe Node environment
 description: >-
-  Resolves the pinned Node.js and npm toolchain from the host's shared tool cache and
-  restores an exact, content-addressed dependency state. Nothing is downloaded
-  or installed on a warm runner.
+  Verifies the pinned Node.js and npm that the runner host already carries and
+  activates an exact, pre-warmed dependency tree from the host's shared store.
+  Nothing is downloaded and nothing is installed on a warm runner; a runner
+  that is missing its toolchain fails with a provisioning error.
 
 inputs:
   working-directory:
@@ -14,17 +15,18 @@ inputs:
     required: false
     default: .nvmrc
   install:
-    description: Set to false to resolve the toolchain without touching dependencies.
+    description: Set to false to verify the toolchain without touching dependencies.
     required: false
     default: 'true'
   npm-install-args:
-    description: Extra flags appended to the fallback npm ci.
+    description: Extra flags for the one cold npm ci that builds a new fingerprint.
     required: false
     default: ''
   store-root:
     description: >-
-      Directory holding the content-addressed dependency store on a persistent
-      runner. Ignored on ephemeral runners, which use actions/cache instead.
+      Directory holding the dependency store on a persistent runner. Defaults
+      to the host's UNIVERSE_DEP_STORE. Ignored on ephemeral runners, which use
+      actions/cache instead.
     required: false
     default: ''
 
@@ -36,10 +38,10 @@ outputs:
     description: npm version now on PATH.
     value: ${{ steps.plan.outputs.npm-version }}
   dependency-key:
-    description: Content-addressed dependency key.
+    description: Content-addressed dependency fingerprint.
     value: ${{ steps.plan.outputs.dependency-key }}
   dependency-state:
-    description: hit or miss.
+    description: hit, miss or empty.
     value: ${{ steps.deps.outputs.state }}
   persistent-runner:
     description: true when the runner keeps its disk between jobs.
@@ -48,7 +50,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Resolve pinned toolchain
+    - name: Verify pre-warmed runtime
       id: toolchain
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -56,37 +58,16 @@ runs:
         NODE_VERSION_FILE: ${{ inputs.node-version-file }}
       run: bash "${{ github.action_path }}/resolve-toolchain.sh"
 
-    # A missing Node version is a host provisioning defect. Report it, install
-    # that version once into the shared tool cache so the branch is still
-    # validated, and leave the loud marker in the log; every later job on the
-    # host finds it.
-    - name: Repair missing toolchain
-      if: steps.toolchain.outputs.needs-install == 'true'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-      with:
-        node-version: ${{ steps.toolchain.outputs.pinned-node }}
-
-    - name: Confirm toolchain
-      if: steps.toolchain.outputs.needs-install == 'true'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      env:
-        PINNED_NPM: ${{ steps.toolchain.outputs.pinned-npm }}
-      run: bash "${{ github.action_path }}/confirm-toolchain.sh"
-
-    - name: Plan dependency state
+    - name: Verify dependency fingerprint
       id: plan
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
-        PINNED_NODE: ${{ steps.toolchain.outputs.pinned-node }}
-        PINNED_NPM: ${{ steps.toolchain.outputs.pinned-npm }}
         NPM_INSTALL_ARGS: ${{ inputs.npm-install-args }}
         STORE_ROOT_INPUT: ${{ inputs.store-root }}
       run: bash "${{ github.action_path }}/plan-dependencies.sh"
 
-    # Ephemeral runners have no local store. RunsOn serves this from the
-    # account's own S3 bucket, so the transfer stays inside the VPC.
+    # Ephemeral runners have no local store; the Actions cache stands in.
     - name: Restore dependency state (ephemeral runner)
       id: remote-cache
       if: inputs.install == 'true' && steps.plan.outputs.no-dependencies != 'true' && steps.plan.outputs.persistent != 'true'
@@ -96,7 +77,7 @@ runs:
         key: ${{ steps.plan.outputs.dependency-key }}
         enableCrossOsArchive: false
 
-    - name: Resolve dependencies
+    - name: Activate pre-warmed dependencies
       id: deps
       if: inputs.install == 'true' && steps.plan.outputs.no-dependencies != 'true'
       shell: bash
