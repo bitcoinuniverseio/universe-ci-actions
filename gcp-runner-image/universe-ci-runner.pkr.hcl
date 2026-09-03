@@ -59,6 +59,18 @@ variable "git_commit" {
 }
 
 # The build host is Spot: an image build is interruptible work.
+# The build host. c3d is the fleet default; pass another family and a
+# pd-standard disk when the region is out of SSD quota or has no c3d.
+variable "build_machine_type" {
+  type    = string
+  default = "c3d-highcpu-8"
+}
+
+variable "build_disk_type" {
+  type    = string
+  default = "pd-balanced"
+}
+
 variable "build_on_spot" {
   type    = bool
   default = true
@@ -96,10 +108,10 @@ source "googlecompute" "runner" {
     build_date     = formatdate("YYYY-MM-DD", timestamp())
   }
 
-  machine_type = "c3d-highcpu-8"
+  machine_type = var.build_machine_type
   preemptible  = var.build_on_spot
   disk_size    = 50
-  disk_type    = "pd-balanced"
+  disk_type    = var.build_disk_type
   metadata = {
     block-project-ssh-keys = "true"
   }
