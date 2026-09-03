@@ -1,6 +1,6 @@
 name: Universe Node environment
 description: >-
-  Resolves the pinned Node.js and npm toolchain from the runner image and
+  Resolves the pinned Node.js and npm toolchain from the host's shared tool cache and
   restores an exact, content-addressed dependency state. Nothing is downloaded
   or installed on a warm runner.
 
@@ -56,8 +56,10 @@ runs:
         NODE_VERSION_FILE: ${{ inputs.node-version-file }}
       run: bash "${{ github.action_path }}/resolve-toolchain.sh"
 
-    # A missing pin is a runner image defect. Report it, repair this one job so
-    # the branch is still validated, and leave the loud marker in the log.
+    # A missing Node version is a host provisioning defect. Report it, install
+    # that version once into the shared tool cache so the branch is still
+    # validated, and leave the loud marker in the log; every later job on the
+    # host finds it.
     - name: Repair missing toolchain
       if: steps.toolchain.outputs.needs-install == 'true'
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

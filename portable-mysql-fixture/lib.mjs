@@ -139,7 +139,7 @@ export async function waitForTcp(host, port, attempts = 60) {
   await selectReachableHost([host], port, attempts, "MySQL fixture");
 }
 
-export async function waitForMysql(platform, container, rootPassword, attempts = 90) {
+export async function waitForMysql(platform, container, rootPassword, attempts = 300) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const result = dockerCommand(platform, [
       "exec", container, "mysqladmin", "ping", "--host=127.0.0.1", "--user=root",
