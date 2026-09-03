@@ -10,6 +10,8 @@ import {
   waitForTcp
 } from "./lib.mjs";
 
+let container;
+
 async function main() {
   const platform = process.platform;
   appendCommandValue(process.env.GITHUB_STATE, "platform", platform);
@@ -27,7 +29,7 @@ async function main() {
   };
   validateFixtureInputs(inputs);
 
-  const container = `universe-ci-mysql-${sanitizedIdentity()}`;
+  container = `universe-ci-mysql-${sanitizedIdentity()}`;
   const publishAddress = "127.0.0.1::3306";
   dockerCommand(platform, [
     "run", "--detach", "--name", container,
@@ -57,6 +59,12 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (container) {
+    dockerCommand(process.platform, ["rm", "--force", container], {
+      capture: true,
+      allowFailure: true
+    });
+  }
   console.error(`::error::${error.message}`);
   process.exitCode = 1;
 });
