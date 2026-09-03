@@ -6,6 +6,12 @@ ConditionPathExists=/opt/actions-runner/run.sh
 
 [Service]
 Type=simple
+# Jobs inherit this environment. ~/.local/bin (pip --user, poetry) and cargo
+# match GitHub-hosted images; CHROME_PATH lets Lighthouse and chrome-launcher
+# find the baked Chromium without a download.
+Environment=PATH=/home/runner/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=CHROME_PATH=/usr/local/bin/google-chrome
+Environment=PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ExecStart=/opt/universe-runner/bootstrap.sh
 Restart=no
 KillMode=mixed
