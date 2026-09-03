@@ -57,3 +57,18 @@ test("rejects a shell script without the required interpreter", async () => {
     },
   );
 });
+
+test("rejects an unreachable PostgreSQL port check", async () => {
+  await withFixture(
+    {
+      "verify.sh":
+        '#!/usr/bin/env bash\nfail=0\nexit "$fail"\nss -ltn | grep -q :5432\n',
+    },
+    async (directory) => {
+      const result = await verifySource(directory);
+      assert.deepEqual(result.failures, [
+        "verify.sh: expected the PostgreSQL port check before the final exit",
+      ]);
+    },
+  );
+});
