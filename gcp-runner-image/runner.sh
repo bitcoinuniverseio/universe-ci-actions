@@ -76,11 +76,15 @@ install -m 0644 /tmp/universe-runner.service /etc/systemd/system/universe-runner
 systemctl enable universe-runner.service
 systemctl enable google-cloud-ops-agent
 
-# Docker: the daemon starts at boot; BuildKit is the default builder.
+# Docker: the daemon starts at boot; BuildKit is the default builder. Docker
+# Hub pulls go through Google's public mirror, because every runner leaves
+# through a handful of Cloud NAT addresses and anonymous Docker Hub limits are
+# counted per address.
 mkdir -p /etc/docker
 cat > /etc/docker/daemon.json <<'EOF'
 {
   "features": { "buildkit": true },
+  "registry-mirrors": ["https://mirror.gcr.io"],
   "log-driver": "json-file",
   "log-opts": { "max-size": "50m", "max-file": "2" }
 }
