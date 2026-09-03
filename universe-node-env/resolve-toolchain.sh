@@ -58,16 +58,12 @@ if [ "${node_version}" != "${pinned_node}" ]; then
   exit 1
 fi
 
-# npm ships inside the Node tarball. A mismatch means the image was built with
-# the wrong bundle, so repair the tool cache once instead of every job.
+# npm is provisioned once, inside the shared tool cache, by the host's
+# provision-toolchain.sh. A job never installs npm: a mismatch is a
+# provisioning defect and fails here with an infrastructure error.
 if [ -n "${pinned_npm}" ] && [ "${npm_version}" != "${pinned_npm}" ]; then
-  echo "::warning title=Runner image defect::NPM MISS on ${RUNNER_NAME:-unknown}: tool cache has npm ${npm_version}, repository pins ${pinned_npm}. Repairing the tool cache copy once."
-  npm install --global --no-audit --no-fund "npm@${pinned_npm}"
-  npm_version="$(npm --version)"
-  if [ "${npm_version}" != "${pinned_npm}" ]; then
-    echo "::error::npm is ${npm_version} after repair, expected ${pinned_npm}."
-    exit 1
-  fi
+  echo "::error title=Runner provisioning defect::npm ${npm_version} on ${RUNNER_NAME:-unknown} but the repository pins ${pinned_npm}. Fix the host with provision-toolchain.sh (NPM_VERSION=${pinned_npm}); jobs do not install npm."
+  exit 1
 fi
 
 echo "TOOLCHAIN HIT: node ${node_version} npm ${npm_version} from ${candidate}"
