@@ -57,10 +57,10 @@ else
 fi
 head -n 1 /opt/universe-runner/bootstrap.sh | grep -qx '#!/usr/bin/env bash' && echo "ok    bootstrap interpreter valid" || { echo "FAIL  bootstrap interpreter invalid" >&2; fail=1; }
 
-exit "$fail"
-
 # Nothing may hold 5432 at boot: jobs publish their own Postgres containers.
 if ss -ltn 2>/dev/null | grep -q ':5432 '; then
   echo "a PostgreSQL server is listening on 5432 in the image" >&2
-  exit 1
+  fail=1
 fi
+
+exit "$fail"
