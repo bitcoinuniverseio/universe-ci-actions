@@ -43,11 +43,30 @@ Target `runs-on: [self-hosted, linux-ultra, linux-container-builder]`.
 | `user` | no | `universe_ci` | Non-root user. `[A-Za-z0-9_]{1,32}`, and it must not be `root`. |
 | `password` | yes | | Password for the non-root user. |
 | `root_password` | yes | | Root password for the isolated fixture. |
-| `connection_host` | no | `127.0.0.1` | Hostname the runner uses to reach Docker's loopback-published port. Use `host.docker.internal` for a runner executing in a container or VM namespace behind Docker Desktop. |
+| `connection_host` | no | `auto` | See [reaching the fixture](#reaching-the-fixture). An explicit host is tried alone and fails loudly when it does not answer. |
 
 ## `portable-postgres-fixture`
 
 Same shape, without `root_password`.
+
+## `portable-redis-fixture`
+
+```yaml
+- id: redis
+  uses: bitcoinuniverseio/universe-ci-actions/portable-redis-fixture@REPLACE_WITH_THE_COMMIT_YOU_PINNED
+  with:
+    image: redis@sha256:REPLACE_WITH_THE_DIGEST_YOU_PINNED
+- run: npm run test:redis-integration
+  env:
+    REDIS_URL: ${{ steps.redis.outputs.url }}
+```
+
+| Input | Required | Default | Meaning |
+| --- | --- | --- | --- |
+| `image` | yes | | Redis image pinned by sha256 digest. |
+| `connection_host` | no | `auto` | See [reaching the fixture](#reaching-the-fixture). |
+
+It also publishes `url`, `redis://host:port`, ready to be used as is.
 
 | Input | Required | Default | Meaning |
 | --- | --- | --- | --- |
@@ -62,12 +81,37 @@ Both actions:
 
 | Output | Value |
 | --- | --- |
-| `host` | The selected `connection_host` (`127.0.0.1` by default) |
+| `host` | The address that proved reachable from the runner (see [reaching the fixture](#reaching-the-fixture)) |
 | `port` | The dynamically allocated host port |
 | `container` | The run-scoped container name |
 
 The port is allocated by Docker, not fixed, so two jobs on the same host never
-collide. Read it from the output; never hardcode 3306 or 5432 on the host side.
+collide. Read the host and the port from the outputs; never hardcode `127.0.0.1`,
+`host.docker.internal`, 3306, 5432 or 6379 on the caller's side.
+
+## Reaching the fixture
+
+The container publishes its port on the Docker host's loopback only. Where the
+caller is decides how that port is reached:
+
+- a runner running natively on the Docker host reaches it on its own
+  `127.0.0.1`;
+- a runner that is itself a container reaches the host's published port
+  through the Docker bridge gateway, or through `host.docker.internal` on a
+  daemon started with `host-gateway`, and never through its own loopback.
+
+A workflow that writes either address into a connection string works on one
+kind of host and fails on the other, which is exactly what happened to the
+KNOT HEADS backend checks on 3 September 2026. So the fixture proves the route
+instead of assuming it. With `connection_host: auto` (the default) it waits
+until the service is healthy inside its container, then connects to the
+published port from the runner's own process through each candidate in turn,
+`127.0.0.1`, the bridge gateway, `host.docker.internal`, and publishes the
+first one that answers, as an address: a name that answered is resolved once
+and its IPv4 address is published, so no later connection depends on the
+engine's embedded DNS. An explicit `connection_host` is tried alone and fails
+loudly when it does not answer, so a caller that names the wrong topology finds
+out at the fixture rather than in its tests.
 
 ## What they actually do
 
