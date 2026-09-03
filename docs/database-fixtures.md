@@ -43,6 +43,7 @@ Target `runs-on: [self-hosted, linux-ultra, linux-container-builder]`.
 | `user` | no | `universe_ci` | Non-root user. `[A-Za-z0-9_]{1,32}`, and it must not be `root`. |
 | `password` | yes | | Password for the non-root user. |
 | `root_password` | yes | | Root password for the isolated fixture. |
+| `connection_host` | no | `127.0.0.1` | Hostname the runner uses to reach Docker's loopback-published port. Use `host.docker.internal` for a runner executing in a container or VM namespace behind Docker Desktop. |
 
 ## `portable-postgres-fixture`
 
@@ -61,7 +62,7 @@ Both actions:
 
 | Output | Value |
 | --- | --- |
-| `host` | `127.0.0.1` |
+| `host` | The selected `connection_host` (`127.0.0.1` by default) |
 | `port` | The dynamically allocated host port |
 | `container` | The run-scoped container name |
 

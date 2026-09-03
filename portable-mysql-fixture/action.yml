@@ -18,10 +18,14 @@ inputs:
   root_password:
     description: Root password for the isolated fixture.
     required: true
+  connection_host:
+    description: Hostname the runner uses to reach Docker's loopback-published port.
+    required: false
+    default: 127.0.0.1
 
 outputs:
   host:
-    description: Loopback hostname for the fixture.
+    description: Runner-reachable hostname for the fixture.
   port:
     description: Dynamically allocated host port.
   container:

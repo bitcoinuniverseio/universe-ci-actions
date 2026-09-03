@@ -25,7 +25,8 @@ async function main() {
     database: requiredInput("database"),
     user: process.env.INPUT_USER?.trim() || "universe_ci",
     password: requiredInput("password"),
-    rootPassword: requiredInput("root_password")
+    rootPassword: requiredInput("root_password"),
+    connectionHost: process.env.INPUT_CONNECTION_HOST?.trim() || "127.0.0.1"
   };
   validateFixtureInputs(inputs);
 
@@ -49,7 +50,7 @@ async function main() {
 
   const port = dockerCommand(platform, ["port", container, "3306/tcp"], { capture: true }).stdout.trim().match(/:(\d+)$/)?.[1];
   if (!port) throw new Error(`Docker did not report a host port for ${container}`);
-  const host = "127.0.0.1";
+  const host = inputs.connectionHost;
   await waitForMysql(platform, container, inputs.rootPassword);
   await waitForTcp(host, Number(port));
 
