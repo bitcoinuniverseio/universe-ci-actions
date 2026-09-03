@@ -23,14 +23,6 @@ export function requiredInput(name, environment = process.env) {
   return value;
 }
 
-export function validateFixtureInputs(inputs) {
-  if (!inputs.image.includes("@sha256:")) throw new Error("PostgreSQL image must be pinned by sha256 digest");
-  if (!/^[A-Za-z0-9_]{1,63}$/.test(inputs.database)) throw new Error("Database name is invalid");
-  if (!/^[A-Za-z0-9_]{1,63}$/.test(inputs.user)) throw new Error("Database user is invalid");
-  if (inputs.user.toLowerCase() === "postgres") throw new Error("The fixture user must not be postgres");
-  validateConnectionHost(inputs.connectionHost);
-}
-
 export function validateConnectionHost(connectionHost) {
   if (!/^[A-Za-z0-9.:-]{1,253}$/.test(connectionHost)) throw new Error("Connection host is invalid");
 }
@@ -116,17 +108,11 @@ export async function selectReachableHost(candidates, port, attempts = 60, servi
   throw new Error(`${service} did not accept TCP connections on any of ${candidates.map((host) => `${host}:${port}`).join(", ")}`);
 }
 
-export async function waitForTcp(host, port, attempts = 60) {
-  await selectReachableHost([host], port, attempts, "PostgreSQL fixture");
-}
-
-export async function waitForPostgres(platform, container, database, user, attempts = 90) {
+export async function waitForRedis(platform, container, attempts = 60) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const result = dockerCommand(platform, [
-      "exec", container, "pg_isready", "--host=127.0.0.1", `--username=${user}`, `--dbname=${database}`
-    ], { capture: true, allowFailure: true });
-    if (result.status === 0) return;
+    const result = dockerCommand(platform, ["exec", container, "redis-cli", "ping"], { capture: true, allowFailure: true });
+    if (result.status === 0 && result.stdout.trim() === "PONG") return;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`PostgreSQL fixture ${container} did not become healthy`);
+  throw new Error(`Redis fixture ${container} did not become healthy`);
 }
