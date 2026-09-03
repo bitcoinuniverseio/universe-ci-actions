@@ -60,7 +60,13 @@ echo 'CHROME_PATH=/usr/local/bin/google-chrome' >> /etc/environment
 # PostgreSQL is installed for jobs that start it themselves (bitcoin-indexer
 # runs systemctl start postgresql). It must not hold port 5432 at boot: other
 # jobs publish their own Postgres container on that port.
+# The umbrella unit and the per-cluster unit are enabled separately on
+# Debian; both stay off at boot. `systemctl start postgresql` still brings
+# the cluster up for jobs that ask for it.
 systemctl disable --now postgresql >/dev/null 2>&1 || true
+for unit in $(systemctl list-unit-files 'postgresql@*.service' --no-legend 2>/dev/null | awk '{print $1}'); do
+  systemctl disable --now "$unit" >/dev/null 2>&1 || true
+done
 echo "${PLAYWRIGHT_VERSION}" > /ms-playwright/.universe-playwright-version
 # Lighthouse, chrome-launcher and puppeteer-style tools look for google-chrome
 # on PATH; point it at the Chromium Playwright just installed.
