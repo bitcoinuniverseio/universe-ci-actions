@@ -21,9 +21,23 @@ export async function verifySource(sourceRoot) {
     }
 
     if (path.extname(file) === ".sh") {
-      const firstLine = bytes.toString("utf8").split("\n", 1)[0];
+      const source = bytes.toString("utf8");
+      const firstLine = source.split("\n", 1)[0];
       if (firstLine !== "#!/usr/bin/env bash") {
         failures.push(`${file}: expected #!/usr/bin/env bash as the first line`);
+      }
+      if (file === "verify.sh") {
+        const portCheckIndex = source.indexOf("ss -ltn");
+        const finalExitIndex = source.lastIndexOf('exit "$fail"');
+        if (
+          portCheckIndex < 0 ||
+          finalExitIndex < 0 ||
+          portCheckIndex > finalExitIndex
+        ) {
+          failures.push(
+            `${file}: expected the PostgreSQL port check before the final exit`,
+          );
+        }
       }
     }
   }
