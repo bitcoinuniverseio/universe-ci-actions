@@ -50,6 +50,12 @@ chown -R runner:runner /ms-playwright
 chmod -R a+rX /ms-playwright
 sed -i -E '/^PLAYWRIGHT_BROWSERS_PATH=/d' /etc/environment
 echo 'PLAYWRIGHT_BROWSERS_PATH=/ms-playwright' >> /etc/environment
+# The bootstrap switches to the runner user through runuser, and pam_env
+# resets PATH from this file. Jobs therefore see this PATH, not the unit's:
+# ~/.local/bin (pip --user, poetry) and cargo first, like GitHub-hosted images.
+sed -i -E '/^PATH=/d' /etc/environment
+echo 'PATH="/home/runner/.local/bin:/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"' >> /etc/environment
+echo 'CHROME_PATH=/usr/local/bin/google-chrome' >> /etc/environment
 echo "${PLAYWRIGHT_VERSION}" > /ms-playwright/.universe-playwright-version
 # Lighthouse, chrome-launcher and puppeteer-style tools look for google-chrome
 # on PATH; point it at the Chromium Playwright just installed.
