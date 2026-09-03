@@ -1,0 +1,31 @@
+name: Portable Redis fixture
+description: Start an isolated Redis test fixture on certified Linux container builders, reachable from a native or a containerized runner.
+
+inputs:
+  image:
+    description: Redis image pinned by digest.
+    required: true
+  connection_host:
+    description: >-
+      Host the caller reaches the fixture through. `auto` proves the route by
+      connecting: the runner's own loopback first, then the Docker bridge
+      gateway and host.docker.internal for a runner that is itself a
+      container. An explicit host is used as given and fails loudly when it
+      is not reachable.
+    required: false
+    default: auto
+
+outputs:
+  host:
+    description: The host that proved reachable for the fixture.
+  port:
+    description: Dynamically allocated host port.
+  container:
+    description: Run-scoped container name.
+  url:
+    description: redis://host:port for the fixture.
+
+runs:
+  using: node24
+  main: main.mjs
+  post: post.mjs

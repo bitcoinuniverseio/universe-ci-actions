@@ -1,5 +1,5 @@
 name: Portable PostgreSQL fixture
-description: Start an isolated PostgreSQL test fixture on certified Linux or Windows container builders.
+description: Start an isolated PostgreSQL test fixture on certified Linux container builders, reachable from a native or a containerized runner.
 
 inputs:
   image:
@@ -18,7 +18,7 @@ inputs:
 
 outputs:
   host:
-    description: Hostname or private address for the fixture.
+    description: The host that proved reachable for the fixture.
   port:
     description: Dynamically allocated host port.
   container:

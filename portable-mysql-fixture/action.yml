@@ -1,5 +1,5 @@
 name: Portable MySQL fixture
-description: Start an isolated MySQL test fixture on certified Linux or Windows container builders.
+description: Start an isolated MySQL test fixture on certified Linux container builders, reachable from a native or a containerized runner.
 
 inputs:
   image:
@@ -19,13 +19,18 @@ inputs:
     description: Root password for the isolated fixture.
     required: true
   connection_host:
-    description: Hostname the runner uses to reach Docker's loopback-published port.
+    description: >-
+      Host the caller reaches the fixture through. `auto` proves the route by
+      connecting: the runner's own loopback first, then the Docker bridge
+      gateway and host.docker.internal for a runner that is itself a
+      container. An explicit host is used as given and fails loudly when it
+      is not reachable.
     required: false
-    default: 127.0.0.1
+    default: auto
 
 outputs:
   host:
-    description: Runner-reachable hostname for the fixture.
+    description: The host that proved reachable for the fixture.
   port:
     description: Dynamically allocated host port.
   container:
@@ -35,4 +40,3 @@ runs:
   using: node24
   main: main.mjs
   post: post.mjs
-
