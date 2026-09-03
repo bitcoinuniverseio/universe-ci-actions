@@ -41,6 +41,10 @@ async function main() {
     "--env", `MYSQL_PASSWORD=${inputs.password}`,
     "--env", `MYSQL_ROOT_PASSWORD=${inputs.rootPassword}`,
     "--publish", publishAddress,
+    // Fixture data lives in memory: sixty-four concurrent jobs on one NVMe
+    // made InnoDB initialisation take minutes on disk, and a fixture never
+    // needs to survive the job.
+    "--tmpfs", "/var/lib/mysql:rw,size=3g",
     inputs.image,
     // Test runners share finite host AIO capacity with other isolated jobs.
     // MySQL's synchronous fallback is sufficient for fixtures and prevents a
