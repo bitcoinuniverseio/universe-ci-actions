@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
+import { promises as dns } from "node:dns";
 import net from "node:net";
 
 export const DOCKER_VERSION = "29.7.2";
@@ -98,10 +99,28 @@ export function tcpReachable(host, port, timeoutMs = 1000) {
  * published port and return that host. The fixture is already healthy inside
  * its container when this runs, so this proves the caller's route to it.
  */
+/**
+ * A name that answered is published as the address it resolved to. A
+ * containerized runner resolves `host.docker.internal` through the engine's
+ * embedded DNS, and that lookup is what intermittently fails later, inside the
+ * tests, with EAI_AGAIN or a hook timeout. The route was proved once, to an
+ * address; the address is what every later connection gets.
+ */
+export async function publishedAddress(host, port) {
+  if (net.isIP(host)) return host;
+  try {
+    const { address } = await dns.lookup(host, { family: 4 });
+    if (await tcpReachable(address, port)) return address;
+  } catch {
+    /* fall through: the name answered and is published as given */
+  }
+  return host;
+}
+
 export async function selectReachableHost(candidates, port, attempts = 60, service = "fixture") {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     for (const host of candidates) {
-      if (await tcpReachable(host, port)) return host;
+      if (await tcpReachable(host, port)) return publishedAddress(host, port);
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
