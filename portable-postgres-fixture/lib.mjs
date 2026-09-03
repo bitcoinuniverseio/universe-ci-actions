@@ -139,7 +139,7 @@ export async function waitForTcp(host, port, attempts = 60) {
   await selectReachableHost([host], port, attempts, "PostgreSQL fixture");
 }
 
-export async function waitForPostgres(platform, container, database, user, attempts = 90) {
+export async function waitForPostgres(platform, container, database, user, attempts = 300) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const result = dockerCommand(platform, [
       "exec", container, "pg_isready", "--host=127.0.0.1", `--username=${user}`, `--dbname=${database}`

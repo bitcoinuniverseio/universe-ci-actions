@@ -39,6 +39,8 @@ async function main() {
     "--env", `POSTGRES_USER=${inputs.user}`,
     "--env", `POSTGRES_PASSWORD=${inputs.password}`,
     "--publish", publishAddress,
+    // Fixture data lives in memory; see the MySQL fixture.
+    "--tmpfs", "/var/lib/postgresql/data:rw,size=3g",
     inputs.image
   ]);
   appendCommandValue(process.env.GITHUB_STATE, "container", container);

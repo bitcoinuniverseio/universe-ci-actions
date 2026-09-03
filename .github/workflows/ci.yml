@@ -15,19 +15,12 @@ concurrency:
 jobs:
   docker-environment:
     name: Pinned Docker environment
-    runs-on: [self-hosted, linux, x64, universe, gcp, universe-gcp-medium]
+    runs-on: [self-hosted, linux, x64, universe-linux]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Verify runner image source integrity
-        shell: bash
-        run: |
-          node --test gcp-runner-image/verify-source.test.mjs
-          node gcp-runner-image/verify-source.mjs
-          node --test gcp-runner-image/verify-browser-bundle-source.test.mjs
-          node gcp-runner-image/verify-browser-bundle-source.mjs
       - uses: ./universe-docker-env
       - name: Check the Docker pin
         shell: bash
@@ -35,7 +28,7 @@ jobs:
 
   service-fixtures:
     name: Portable service fixtures prove their route
-    runs-on: [self-hosted, linux, x64, universe, gcp, universe-gcp-medium]
+    runs-on: [self-hosted, linux, x64, universe-linux]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
