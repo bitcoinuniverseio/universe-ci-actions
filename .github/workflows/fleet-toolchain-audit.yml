@@ -5,10 +5,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03,
-                 universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06,
-                 universe-runner-01, universe-runner-02, universe-runner-03, universe-runner-04,
-                 universe-runner-05, universe-runner-06, universe-runner-07, universe-runner-08]
+        runner: [universe-linux-ultra-01, universe-linux-ultra-02, universe-linux-ultra-03, universe-linux-ultra-04, universe-linux-ultra-05, universe-linux-ultra-06, universe-linux-ultra-07, universe-linux-ultra-08, universe-linux-ultra-09, universe-linux-ultra-10, universe-linux-ultra-11, universe-linux-ultra-12, universe-linux-ultra-13, universe-linux-ultra-14, universe-linux-ultra-15, universe-linux-ultra-16]
     runs-on: [self-hosted, "${{ matrix.runner }}"]
     timeout-minutes: 10
     steps:
