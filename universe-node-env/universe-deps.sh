@@ -288,10 +288,11 @@ prune_store() {
         log "DEPENDENCY PRUNED: ${key}"
       fi
     done
-  # Leftovers: aborted stagings, quarantined snapshots, the archives of the
-  # superseded tar.zst format.
+  # Leftovers: aborted stagings and quarantined snapshots. The store root also
+  # holds the .tar.zst archives of the previous format, which repositories
+  # still pinned to the older action reuse; they are left alone so that
+  # upgrading this action never makes another repository cold.
   find "${tmp}" -mindepth 1 -maxdepth 1 -mmin +180 -exec rm -rf -- {} + 2>/dev/null || true
-  find "${store}" -maxdepth 1 -name '*.tar.zst' -mtime +1 -delete 2>/dev/null || true
 }
 
 # ---------------------------------------------------------------------------
