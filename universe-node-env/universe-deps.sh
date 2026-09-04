@@ -276,18 +276,46 @@ activate_snapshot() { # <key> <link:true|false> <source text>
 # Retention: least recently used beyond the keep count, never a tree that is
 # being linked (shared lock held) and never one used in the last hour.
 # ---------------------------------------------------------------------------
+# Removes one tree if nothing is using it. A tree being linked right now holds
+# the shared lock, so it is skipped rather than pulled out from under a job.
+drop_tree() { # <snapshot dir>
+  local victim="$1" key
+  key="$(basename "${victim}")"
+  if ( exec 7>"${locks}/${key}.lock"; flock -n -x 7 && mv -T -- "${victim}" "${tmp}/pruned.${key}.$$" ); then
+    rm -rf -- "${tmp}/pruned.${key}.$$" "${locks}/${key}.lock"
+    log "DEPENDENCY PRUNED: ${key}"
+    return 0
+  fi
+  return 1
+}
+
+free_mb() { df -Pm "${trees}" 2>/dev/null | awk 'NR == 2 {print $4}'; }
+
 prune_store() {
-  local victim key
+  local victim
   [[ -d "${trees}" ]] || return 0
+
+  # Least recently used beyond the keep count. Every activation touches its
+  # tree, so an active dependency identity is never the victim.
   find "${trees}" -mindepth 2 -maxdepth 2 -name last-used -mmin +60 -printf '%T@ %h\n' 2>/dev/null |
     sort -rn | tail -n "+$((keep + 1))" | cut -d' ' -f2- |
+    while IFS= read -r victim; do drop_tree "${victim}" || true; done
+
+  # A count alone cannot bound a store of trees whose sizes differ by two
+  # orders of magnitude, and a full disk stops every runner on the host. Below
+  # the floor, the least recently used trees go until there is room again.
+  local floor="${UNIVERSE_DEP_STORE_FREE_MB:-40960}" available
+  available="$(free_mb)"
+  if [[ "${available}" =~ ^[0-9]+$ ]] && (( available < floor )); then
+    log "DEPENDENCY STORE: ${available} MB free, below the ${floor} MB floor; releasing least recently used trees"
     while IFS= read -r victim; do
-      key="$(basename "${victim}")"
-      if ( exec 7>"${locks}/${key}.lock"; flock -n -x 7 && mv -T -- "${victim}" "${tmp}/pruned.${key}.$$" ); then
-        rm -rf -- "${tmp}/pruned.${key}.$$" "${locks}/${key}.lock"
-        log "DEPENDENCY PRUNED: ${key}"
-      fi
-    done
+      [[ -n "${victim}" ]] || continue
+      drop_tree "${victim}" || continue
+      available="$(free_mb)"
+      [[ "${available}" =~ ^[0-9]+$ ]] && (( available >= floor )) && break
+    done < <(find "${trees}" -mindepth 2 -maxdepth 2 -name last-used -mmin +60 -printf '%T@ %h\n' 2>/dev/null | sort -n | cut -d' ' -f2-)
+    log "DEPENDENCY STORE: ${available} MB free after release"
+  fi
   # Leftovers: aborted stagings and quarantined snapshots. The store root also
   # holds the .tar.zst archives of the previous format, which repositories
   # still pinned to the older action reuse; they are left alone so that

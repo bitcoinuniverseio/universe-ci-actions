@@ -142,9 +142,14 @@ The same script, `universe-deps`, is installed on every host by
 provisioning time is the one a job links. The action uses the host's copy and
 falls back to its bundled copy on a host that predates it.
 
-Retention is least recently used: `UNIVERSE_DEP_STORE_KEEP` trees (default
-600) survive, a tree used in the last hour or being linked right now is never
-removed, and a pruned tree leaves every job's existing links intact.
+Retention is least recently used, bounded two ways: `UNIVERSE_DEP_STORE_KEEP`
+trees (default 600) survive, and whenever free space falls below
+`UNIVERSE_DEP_STORE_FREE_MB` (default 40 GiB) the least recently used trees
+are released until there is room again. A count alone cannot bound a store of
+trees whose sizes differ by two orders of magnitude, and a full disk stops
+every runner on the host. A tree used in the last hour, or being linked right
+now, is never the victim, and a released tree leaves every job's existing
+links intact.
 
 Ephemeral runners (none in the fleet today) use `actions/cache` with the same
 key.
@@ -164,6 +169,7 @@ toolchain stand on its own. A lockfile that resolves to nothing reports
 | `UNIVERSE_NODE_VERSION` | Organization Node.js pin used when a repository declares none. Defaults to 24.19.0. |
 | `UNIVERSE_DEP_STORE` | Dependency store root on a persistent runner. |
 | `UNIVERSE_DEP_STORE_KEEP` | Trees kept before least-recently-used pruning. Default 600. |
+| `UNIVERSE_DEP_STORE_FREE_MB` | Free space the store keeps available, in MiB. Default 40960. |
 | `UNIVERSE_DEPS_BIN` | Path of the host's `universe-deps`; defaults to `bin/universe-deps` beside the store. |
 | `UNIVERSE_DEPS_VERIFY` | `full` (default) verifies the manifest on every activation; `none` skips it. |
 
