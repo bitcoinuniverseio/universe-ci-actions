@@ -29,7 +29,7 @@ when the queue is backlogged.
 ```yaml
 jobs:
   build:
-    runs-on: [self-hosted, linux-ultra]
+    runs-on: [self-hosted, linux, x64, universe-super]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
