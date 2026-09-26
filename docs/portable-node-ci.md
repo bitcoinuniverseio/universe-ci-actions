@@ -35,7 +35,10 @@ No outputs.
 
 1. **Resolve the Node version.** The version file if it exists, otherwise
    `node-version`. An empty result fails the step.
-2. **`actions/setup-node`** with that version.
+2. **`actions/setup-node`** with that version and `package-manager-cache: false`.
+   Without it, a `packageManager` field in `package.json` switches on npm
+   caching. The post step then archives the host's shared npm cache while
+   other jobs write to it, and hangs until the job timeout.
 3. **Pin npm to 11.17.0.** Installs it if the resolved npm differs, then fails
    the step if it still differs.
 4. **Install.** `npm ci --legacy-peer-deps` when a `package-lock.json` exists,

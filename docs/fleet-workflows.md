@@ -1,8 +1,16 @@
 # Fleet diagnostics
 
 Two `workflow_dispatch` workflows in this repository act on the runner fleet
-rather than on this repository's own code. Both run one job per runner using a
-matrix that names each runner, so the output is per machine.
+rather than on this repository's own code. Both run one job per host, selected
+by the host label (`primcast`). Every service on a host shares its tool cache,
+dependency store, build store and disk, so one job reports the whole host.
+
+The PowerVPS ultra services (`universe-linux-ultra-01` to `-64`) are not
+reachable from here: their runner group, `Universe-PowerVPS-Secondary`, admits
+only index-zcash-metaprotocols, inscribe, king, mempool and zerdinals-and-zrunes.
+A job in this repository that names an ultra runner stays queued until GitHub
+expires it. Ultra host diagnostics and certification run from king
+(`runner-host-diagnostics.yml`, `runner-certification.yml`).
 
 They live here, in a public repository, on purpose: while the account is
 billing-locked, private repositories cannot start a workflow at all, so a fleet
@@ -12,7 +20,7 @@ diagnostic kept there is unavailable exactly when it is needed.
 
 `.github/workflows/fleet-toolchain-audit.yml`
 
-Reports, for every self-hosted runner by name:
+Reports, for each host:
 
 - whether the pinned Node.js 24.19.0 is in that runner's Actions tool cache,
   which version it reports, and whether the tool cache entry is marked complete
@@ -35,7 +43,7 @@ which is what makes this worth a dedicated workflow.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runners` | `all` | Comma separated runner name labels, or `all`. |
+| `runners` | `all` | Comma separated host labels (`primcast`), or `all`. |
 | `apply` | `false` | Report only by default. Set `true` to delete. |
 
 **Report first.** With `apply=false` it prints disk usage before, and the
