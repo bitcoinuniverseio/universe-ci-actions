@@ -7,10 +7,10 @@
 `runs-on`, in any repository of this organization, public or private. Those
 labels route the job to GitHub's own runners and bypass the fleet entirely.
 
-Every job must target either:
-
-- the self-hosted fleet, by label, or
-- the RunsOn plus AWS configuration.
+Every job targets the self-hosted fleet by label. The GCP (`gcp`,
+`universe-gcp-*`), WarpBuild and RunsOn platforms are decommissioned; king's
+selector lint rejects them, and a job that requests them queues until GitHub
+expires it.
 
 This applies to public repositories too. It is not a cost preference; it is how
 the organization's CI is built, and a job on a GitHub-hosted runner has none of
@@ -38,54 +38,49 @@ containers.
 ## Choosing a label
 
 A job is scheduled onto any runner that carries **all** the labels the job
-requests. That is worth reading twice, because it is the source of most bad
-routing in this organization: a broad label matches more machines than the
-author expected.
+requests, and only if the runner's group admits the job's repository.
 
-Verified against the organization's registered runners on 2026-09-01:
+Live fleet, verified 2026-09-26 (online services):
 
-| Label you request | Runners it can match |
+| Pool | Services | Runner group | Repositories admitted |
+| --- | --- | --- | --- |
+| PrimCast super, primary | 48 enabled of `universe-linux-super-01` to `-192` | `Universe-Primcast-Primary` | all |
+| PowerVPS ultra, secondary | `universe-linux-ultra-01` to `-64` | `Universe-PowerVPS-Secondary` | index-zcash-metaprotocols, inscribe, king, mempool, zerdinals-and-zrunes |
+
+| Label you request | Services it matches |
 | --- | --- |
-| `universe-linux-ultra` | 6, the primary ultra pool and nothing else |
-| `linux-ultra` | 11, the ultra pool plus five older runners |
-| `linux-container-builder` | 7, the ultra pool plus one older runner |
-| `docker-29-7-2`, `docker-ci` | 7, the same set as `linux-container-builder` |
-| `ultra`, `universe-ci` | 14, every Linux runner in the fleet |
+| `universe-super`, `primcast` | 48, PrimCast only |
+| `universe-linux-ultra`, `linux-ultra`, `ultra` | 64, ultra only (admitted repositories only) |
+| `universe-ci`, `universe-linux`, `docker-ci`, `docker-29-7-2`, `linux-container-builder`, `playwright-chromium`, `browser-heavy` | 112, both pools |
 
 Practical guidance:
 
-- **Default for a source job:** `runs-on: [self-hosted, linux-ultra]`.
-- **When the job needs Docker** (a container build, a database fixture):
-  `runs-on: [self-hosted, linux-ultra, linux-container-builder]`. The
-  `portable-*` fixtures and `portable-container-build` all require Docker 29.7.2
-  and refuse anything else.
-- **When you want the primary pool and only the primary pool:** request
-  `universe-linux-ultra`. This is the narrowest label and it is the only one
-  that excludes every older runner.
-- **Avoid `ultra` and `universe-ci` as your only qualifier.** They match every
-  Linux runner including the ones being drained.
-
-### The `runner-drained` label
-
-Eight runners currently carry a `runner-drained` label. It is a marker for
-operators, not a scheduling control: GitHub routes on the labels a job asks for,
-so a drained runner still picks up any job whose requested labels it happens to
-carry. Five of the eight also carry `linux-ultra`.
-
-If you need to keep work off them, request a label they do not have
-(`universe-linux-ultra`), rather than assuming the marker does it for you.
+- **Default for any job:** `runs-on: [self-hosted, linux, x64, universe-super]`.
+  PrimCast is the primary fleet; use it first.
+- **When the job needs Docker or Playwright:** the same selector works; every
+  PrimCast service carries Docker 29.7.2 and Playwright Chromium. The
+  `portable-*` fixtures and `portable-container-build` refuse any other Docker
+  version.
+- **Service containers must publish ephemeral host ports.** Every PrimCast
+  service shares one Docker daemon, so a fixed mapping such as `3306:3306`
+  fails the second concurrent job with "port is already allocated". Publish only
+  the container port (`- 3306`) and read the host port from
+  `job.services.<name>.ports['3306']` in a step.
+- **Ultra only from an admitted repository.** Requesting an ultra label from any
+  other repository never schedules.
+- **Avoid `universe-ci` as your only qualifier** unless the job genuinely runs
+  on either pool.
 
 ## When the queue is backlogged
 
-This is a real and recurring condition, not a hypothetical. On 2026-09-01,
-across several repositories, jobs sat queued for a long stretch while all six
-ultra runners were busy and eight further runners were marked drained.
+This is a real and recurring condition, not a hypothetical. PrimCast runs 48
+services; with all 192 enabled the host logged OOM kills, and at 48 its disk is
+already the bottleneck, so the cap is deliberate.
 
 What actually helps, in order:
 
-1. **Ask for the narrowest correct label set, not the broadest.** A job that
-   requests `linux-container-builder` when it never touches Docker is competing
-   for seven machines instead of eleven.
+1. **Ask for the narrowest correct label set.** A job that requests a label only
+   one pool carries competes for fewer machines than it could.
 2. **Do not duplicate work between jobs.** Use
    [`universe-build-store`](../universe-build-store) to build once and restore
    everywhere else, and `universe-node-env` so no job reinstalls an unchanged
@@ -94,20 +89,12 @@ What actually helps, in order:
 3. **Cancel superseded runs.** Every workflow should set a `concurrency` group
    with `cancel-in-progress: true` on the ref, so a push does not leave its own
    predecessor occupying a runner. Both workflows in this repository do.
-4. **Let RunsOn absorb the overflow where the workload suits it.** RunsOn
-   instances are ephemeral, so they have no local dependency or build store;
-   `universe-node-env` detects that and uses the account's own S3-backed Actions
-   cache instead, automatically. The tradeoff is a cold-ish start in exchange for
-   not queueing. RunsOn capacity is spot only; there is no on-demand fallback,
-   so a job can still queue when spot capacity is short.
-5. **Do not block a documentation or configuration merge on a green run you
+4. **Do not block a documentation or configuration merge on a green run you
    cannot get.** Run the repository's own gate locally, say in the pull request
-   exactly what you ran and what it reported, and merge on that evidence. Several
-   merges on 2026-09-01 were verified this way.
+   exactly what you ran and what it reported, and merge on that evidence.
 
-What does not help: adding a GitHub-hosted runner label to get around the
-queue. That is prohibited, and it silently produces a job with none of the warm
-caches these actions rely on.
+What does not help: adding a GitHub-hosted or decommissioned runner label to get
+around the queue. Both are prohibited, and the decommissioned ones never run.
 
 ## How the actions detect the runner class
 
