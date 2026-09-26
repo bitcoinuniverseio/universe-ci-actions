@@ -32,9 +32,14 @@ runs:
         if (-not $version) { throw "Node version is empty" }
         "version=$version" | Out-File -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+    # setup-node turns npm caching on by itself when package.json declares a
+    # packageManager. On the fleet, npm's cache is one directory shared by
+    # every runner on the host, so the post step tried to archive all of it
+    # while other jobs wrote to it and ran until the job timeout.
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ steps.runtime.outputs.version }}
+        package-manager-cache: false
 
     - name: Pin npm
       shell: pwsh
