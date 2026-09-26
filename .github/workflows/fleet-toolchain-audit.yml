@@ -26,7 +26,7 @@ jobs:
             echo "NODE_IN_TOOL_CACHE=NO"
           fi
           echo "shared_root=$root"
-          echo "dep_store=$([ -d "$root/.universe-dep-store" ] && du -sh "$root/.universe-dep-store" 2>/dev/null | cut -f1 || echo absent)"
-          echo "build_store=$([ -d "$root/.universe-build-store" ] && du -sh "$root/.universe-build-store" 2>/dev/null | cut -f1 || echo absent)"
+          echo "dep_store=$([ -d "$root/.universe-dep-store" ] && { timeout 120 du -sh "$root/.universe-dep-store" 2>/dev/null || echo "size-timeout"; } | cut -f1 || echo absent)"
+          echo "build_store=$([ -d "$root/.universe-build-store" ] && { timeout 120 du -sh "$root/.universe-build-store" 2>/dev/null || echo "size-timeout"; } | cut -f1 || echo absent)"
           echo "UNIVERSE_DEP_STORE_env=${UNIVERSE_DEP_STORE:-unset}"
           echo "free_space=$(df -h "$root" | tail -1 | awk "{print \$4}")"
