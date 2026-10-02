@@ -5,6 +5,20 @@
 set -Eeuo pipefail
 ROOT="$1"; shift
 PREFIX="$ROOT/prefix"
+relocate() {
+  # Idempotent: the prefix itself ends in ".../prefix", so an already relocated
+  # path is preceded by "x" and is never rewritten twice.
+  find "$PREFIX" -name '*.pc' -type f -exec sed -i "s#^prefix=/usr\$#prefix=$PREFIX/usr#; s#=/usr/#=$PREFIX/usr/#g" {} +
+  local f
+  for f in "$PREFIX/usr/bin/musl-gcc" "$PREFIX"/usr/lib/x86_64-linux-musl/musl-gcc.specs "$PREFIX"/usr/lib/musl/lib/musl-gcc.specs; do
+    [[ -f "$f" ]] && sed -i "s#\([^x]\|^\)/usr/\(lib\|include\)/\(x86_64-linux-musl\|musl\)#\1$PREFIX/usr/\2/\3#g" "$f"
+  done
+  find "$PREFIX" -type l | while read -r l; do
+    t="$(readlink "$l")"
+    if [[ "$t" == /* && ! -e "$t" && -e "$PREFIX$t" ]]; then ln -sfn "$PREFIX$t" "$l"; fi
+  done
+}
+if [[ "${1:-}" == --relocate-only ]]; then relocate; exit 0; fi
 APT="$ROOT/apt"
 mkdir -p "$APT/lists/partial" "$APT/archives/partial" "$PREFIX"
 opts=(-o "Dir::State::Lists=$APT/lists" -o "Dir::Cache=$APT/cache" -o "Dir::Cache::archives=$APT/archives"
@@ -21,15 +35,6 @@ for deb in "$APT"/archives/*.deb; do
     touch "$ROOT/state/deb-$name.done"
   fi
 done
-# Relocate absolute /usr paths in pkg-config files and in the musl wrapper/spec.
-find "$PREFIX" -name '*.pc' -type f -exec sed -i "s#^prefix=/usr\$#prefix=$PREFIX/usr#; s#=/usr/#=$PREFIX/usr/#g" {} +
-for f in "$PREFIX/usr/bin/musl-gcc" "$PREFIX"/usr/lib/musl/lib/musl-gcc.specs; do
-  [[ -f "$f" ]] && sed -i "s#\([\" ]\)/usr/lib/musl#\1$PREFIX/usr/lib/musl#g; s#^/usr/lib/musl#$PREFIX/usr/lib/musl#g; s#\"/usr/include/x86_64-linux-musl#\"$PREFIX/usr/include/x86_64-linux-musl#g; s# /usr/include/x86_64-linux-musl# $PREFIX/usr/include/x86_64-linux-musl#g" "$f"
-done
-# Point dangling absolute .so symlinks from -dev packages at the prefix copy.
-find "$PREFIX" -type l | while read -r l; do
-  t="$(readlink "$l")"
-  if [[ "$t" == /* && ! -e "$t" && -e "$PREFIX$t" ]]; then ln -sfn "$PREFIX$t" "$l"; fi
-done
+relocate
 for p in "$@"; do touch "$ROOT/state/$p.done"; done
 rm -f "$APT"/archives/*.deb

@@ -36,6 +36,7 @@ if (( ${#wanted[@]} )); then
   bash "$here/apt-userspace.sh" "$ROOT" "${wanted[@]}"
 fi
 
+bash "$here/apt-userspace.sh" "$ROOT" --relocate-only
 install -m 0755 "$here/sudo-shim.sh" "$ROOT/shim/sudo"
 install -m 0755 "$here/apt-userspace.sh" "$ROOT/apt-userspace.sh"
 flock -u 9
