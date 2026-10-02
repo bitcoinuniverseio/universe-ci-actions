@@ -59,9 +59,9 @@ flock -u 9
 lib="$PREFIX/usr/lib/x86_64-linux-gnu:$PREFIX/lib/x86_64-linux-gnu:$PREFIX/usr/lib"
 # Each GITHUB_PATH line is prepended, so the last one wins: shims go last.
 {
-  echo "$PREFIX/usr/lib/postgresql/16/bin"
   echo "$PREFIX/usr/sbin"
   echo "$PREFIX/usr/bin"
+  echo "$PREFIX/usr/lib/postgresql/16/bin"
   echo "$ROOT/shim"
 } >> "$GITHUB_PATH"
 {
