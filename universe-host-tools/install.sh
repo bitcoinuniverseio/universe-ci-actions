@@ -11,6 +11,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PWSH_VERSION=7.6.6
 PWSH_SHA256=ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
 DEFAULT_PACKAGES="mysql-client-core-8.0 postgresql-client-16 redis-tools protobuf-compiler libprotobuf-dev pkg-config libssl-dev musl-tools git-lfs"
+# Chromium runtime libraries and fonts for Playwright jobs on the host.
+BROWSER_PACKAGES="libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 libcups2t64 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libxshmfence1 fontconfig fonts-liberation fonts-noto-color-emoji xvfb xauth xkb-data x11-xkb-utils"
 
 mkdir -p "$ROOT/state" "$PREFIX" "$ROOT/shim"
 exec 9>"$ROOT/.lock"
@@ -29,7 +31,7 @@ fi
 ln -sfn "$ROOT/pwsh/$PWSH_VERSION/pwsh" "$ROOT/shim/pwsh"
 
 wanted=()
-for p in $DEFAULT_PACKAGES ${UHT_EXTRA_PACKAGES:-}; do
+for p in $DEFAULT_PACKAGES $BROWSER_PACKAGES ${UHT_EXTRA_PACKAGES:-}; do
   [[ -f "$ROOT/state/$p.done" ]] || wanted+=("$p")
 done
 if (( ${#wanted[@]} )); then
@@ -37,6 +39,19 @@ if (( ${#wanted[@]} )); then
 fi
 
 bash "$here/apt-userspace.sh" "$ROOT" --relocate-only
+mkdir -p "$ROOT/fontcache"
+cat > "$ROOT/fonts.conf" <<FONTS
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+  <include ignore_missing="yes">$PREFIX/etc/fonts/conf.d</include>
+  <dir>/usr/share/fonts</dir>
+  <dir>$PREFIX/usr/share/fonts</dir>
+  <cachedir>$ROOT/fontcache</cachedir>
+</fontconfig>
+FONTS
+install -m 0755 "$here/xvfb-run.sh" "$ROOT/shim/xvfb-run"
 install -m 0755 "$here/sudo-shim.sh" "$ROOT/shim/sudo"
 install -m 0755 "$here/apt-userspace.sh" "$ROOT/apt-userspace.sh"
 flock -u 9
@@ -54,6 +69,8 @@ lib="$PREFIX/usr/lib/x86_64-linux-gnu:$PREFIX/lib/x86_64-linux-gnu:$PREFIX/usr/l
   echo "LIBRARY_PATH=$lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
   echo "CPATH=$PREFIX/usr/include:$PREFIX/usr/include/x86_64-linux-gnu${CPATH:+:$CPATH}"
   echo "PKG_CONFIG_PATH=$PREFIX/usr/lib/x86_64-linux-gnu/pkgconfig:$PREFIX/usr/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+  echo "FONTCONFIG_FILE=$ROOT/fonts.conf"
+  echo "XKB_CONFIG_ROOT=$PREFIX/usr/share/X11/xkb"
   echo "PROTOC=$PREFIX/usr/bin/protoc"
   echo "PROTOC_INCLUDE=$PREFIX/usr/include"
 } >> "$GITHUB_ENV"
