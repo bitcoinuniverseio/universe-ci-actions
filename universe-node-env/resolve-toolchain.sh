@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# Puts the pinned Node.js and npm on PATH without downloading anything.
-#
-# Every supported runner image ships the pinned Node.js in the Actions tool
-# cache. Selecting it is a PATH change, so a warm job spends milliseconds here
-# instead of the ~93 seconds an actions/setup-node download costs.
+# Verifies the pinned Node.js and npm that the runner host already carries and
+# puts them on PATH. Nothing is downloaded here: every Universe runner host is
+# provisioned once with every pinned version in its shared Actions tool cache,
+# and a runner that is missing the pin is a provisioning defect, reported as
+# one, so the host is repaired instead of every job repairing itself.
 set -euo pipefail
 
-# .nvmrc is the preferred pin, but not every repository has one. Fall back to
-# package.json engines, then to the organization pin, so a repository without
-# an .nvmrc still gets an exact declared version rather than whatever happens
-# to be first on PATH.
+fail() {
+  echo "::error title=Runner provisioning error::$*"
+  echo "RUNNER PROVISIONING ERROR: $*" >&2
+  echo "Required Node.js/npm toolchain is not preinstalled on ${RUNNER_NAME:-this runner}. Repair the host with provision-toolchain.sh before it accepts CI jobs." >&2
+  exit 1
+}
+
+# .nvmrc is the preferred pin, then an exact engines.node, then the
+# organization pin, so a repository without an .nvmrc still gets an exact
+# declared version rather than whatever happens to be first on PATH.
 if [ -f "${NODE_VERSION_FILE}" ]; then
   pinned_node="$(tr -d ' \t\r\nv' < "${NODE_VERSION_FILE}")"
 else
@@ -21,10 +27,7 @@ else
     echo "No ${NODE_VERSION_FILE}; using engines.node ${pinned_node} from package.json."
   fi
 fi
-pinned_npm="$(node -e 'process.stdout.write(require("./package.json").engines?.npm ?? "")' 2>/dev/null || true)"
-if [ -z "${pinned_npm}" ]; then
-  pinned_npm="$( [ -f package.json ] && sed -n 's/.*"npm"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1 || true)"
-fi
+pinned_npm="$( [ -f package.json ] && sed -n 's/.*"npm"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' package.json | head -n 1 || true)"
 
 case "${RUNNER_ARCH:-X64}" in
   X64) arch=x64 ;;
@@ -40,31 +43,22 @@ candidate="${tool_cache}/node/${pinned_node}/${arch}"
   echo "pinned-npm=${pinned_npm}"
 } >> "${GITHUB_OUTPUT}"
 
-if [ ! -x "${candidate}/bin/node" ]; then
-  echo "::warning title=Runner image defect::TOOLCHAIN MISS on ${RUNNER_NAME:-unknown}: Node ${pinned_node} is not in ${tool_cache}. This job installs it once; fix the runner image so no other job pays this cost."
-  echo "TOOLCHAIN MISS: node/${pinned_node}/${arch}"
-  echo "needs-install=true" >> "${GITHUB_OUTPUT}"
-  exit 0
-fi
+[ -x "${candidate}/bin/node" ] || fail "Node.js ${pinned_node} is not in the tool cache ${tool_cache} on ${RUNNER_NAME:-unknown}"
 
 echo "${candidate}/bin" >> "${GITHUB_PATH}"
 export PATH="${candidate}/bin:${PATH}"
+hash -r
 
 node_version="$(node --version | tr -d 'v')"
 npm_version="$(npm --version)"
 
-if [ "${node_version}" != "${pinned_node}" ]; then
-  echo "::error::Tool cache holds Node ${node_version} under the ${pinned_node} directory."
-  exit 1
-fi
-
-# npm is provisioned once, inside the shared tool cache, by the host's
-# provision-toolchain.sh. A job never installs npm: a mismatch is a
-# provisioning defect and fails here with an infrastructure error.
+[ "${node_version}" = "${pinned_node}" ] || fail "tool cache holds Node ${node_version} under the ${pinned_node} directory on ${RUNNER_NAME:-unknown}"
 if [ -n "${pinned_npm}" ] && [ "${npm_version}" != "${pinned_npm}" ]; then
-  echo "::error title=Runner provisioning defect::npm ${npm_version} on ${RUNNER_NAME:-unknown} but the repository pins ${pinned_npm}. Fix the host with provision-toolchain.sh (NPM_VERSION=${pinned_npm}); jobs do not install npm."
-  exit 1
+  fail "npm ${npm_version} on ${RUNNER_NAME:-unknown} but the repository pins ${pinned_npm}; run provision-toolchain.sh (NPM_VERSION=${pinned_npm}) on the host"
 fi
 
-echo "TOOLCHAIN HIT: node ${node_version} npm ${npm_version} from ${candidate}"
-echo "needs-install=false" >> "${GITHUB_OUTPUT}"
+echo "NODE: preinstalled ${node_version} ($(command -v node))"
+echo "NPM: preinstalled ${npm_version} ($(command -v npm))"
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  echo "- runtime pre-warmed: node ${node_version}, npm ${npm_version}" >> "${GITHUB_STEP_SUMMARY}"
+fi
