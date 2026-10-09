@@ -57,7 +57,8 @@ collide with old ones, and say in the pull request that consumers will see one
 
 ## Testing a change
 
-There is no unit test suite for these actions. Verify a change by running it:
+Run `node --test scripts/fixture-cleanup.test.mjs` for the saved-state and post-step
+regressions. Linux executes the real post processes. Verify the live action too:
 
 1. Push your branch here.
 2. In one consuming repository, point a workflow at your branch's commit SHA
