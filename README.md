@@ -111,3 +111,15 @@ This repository carries no licence file today. It is published so that
 `bitcoinuniverseio` repositories, public and private, can resolve these actions;
 it is not offered as a general purpose action library. Adding an explicit licence
 is an open item for the repository owners.
+
+## Fixture cleanup verification
+
+Fixture data belongs to one job and must be removed by the action's post step.
+GitHub preserves the case of names written to `GITHUB_STATE`; cleanup reads the
+`STATE_platform` and `STATE_container` keys written by the fixture actions and
+also accepts the previous uppercase keys. Inputs and outputs are unchanged.
+
+Run `node --test scripts/fixture-cleanup.test.mjs` with Node.js 24.19.0. The tests
+exercise the saved-state producer and cleanup consumer for MySQL, PostgreSQL and
+Redis. Linux also executes each real post script with a recording Docker command.
+The normal self-hosted CI additionally proves each live fixture's published route.
