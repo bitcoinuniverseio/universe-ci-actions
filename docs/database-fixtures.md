@@ -139,3 +139,15 @@ identifier or an infrastructure address.
 
 Still pass them from repository or organization secrets rather than writing a
 literal into a workflow file, so a value is never in the log or the diff.
+
+## Post-step state and cleanup
+
+Each fixture saves `platform` and `container` through `GITHUB_STATE`. On Linux,
+GitHub exposes these as `STATE_platform` and `STATE_container`, with the same
+case. The post scripts consume those names and retain support for uppercase
+legacy state. A completed job must not leave its fixture running; fixtures are
+disposable test databases and are never a store for wallet or journey recovery.
+
+`node --test scripts/fixture-cleanup.test.mjs` covers the state handoff and real
+post-script invocation on Linux. Run the repository's normal self-hosted workflow
+for live Docker route checks before updating a consuming workflow's pinned SHA.
