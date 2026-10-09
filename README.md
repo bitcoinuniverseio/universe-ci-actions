@@ -123,3 +123,6 @@ Run `node --test scripts/fixture-cleanup.test.mjs` with Node.js 24.19.0. The tes
 exercise the saved-state producer and cleanup consumer for MySQL, PostgreSQL and
 Redis. Linux also executes each real post script with a recording Docker command.
 The normal self-hosted CI additionally proves each live fixture's published route.
+
+Run CI manually on the reviewed feature ref when runner admission requires a
+trusted dispatch event. Both jobs execute the same assertions for that commit.
