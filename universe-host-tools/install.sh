@@ -15,14 +15,17 @@ PWSH_SHA256=ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
 # unversioned mysql-client-core / mysql-client and postgresql-client /
 # postgresql-client-18. Prefer the historical pin when it still exists.
 resolve_apt_package() {
-  local candidate
+  local candidate cand
   for candidate in "$@"; do
-    if apt-cache show "$candidate" >/dev/null 2>&1; then
+    # apt-cache show can succeed for a name with Candidate: (none), as
+    # mysql-client-core-8.0 still does on Ubuntu 26.04.
+    cand="$(apt-cache policy "$candidate" 2>/dev/null | awk "/^  Candidate:/ {print \$2; exit}")"
+    if [[ -n "$cand" && "$cand" != "(none)" ]]; then
       printf '%s\n' "$candidate"
       return 0
     fi
   done
-  echo "none of the candidate packages are available: $*" >&2
+  echo "none of the candidate packages are installable: $*" >&2
   return 1
 }
 
