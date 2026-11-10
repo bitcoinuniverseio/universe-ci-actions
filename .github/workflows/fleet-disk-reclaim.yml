@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         runner: [primcast]
-    runs-on: [self-hosted, "${{ matrix.runner }}"]
+    runs-on: [self-hosted, Linux, X64, universe]
     timeout-minutes: 20
     steps:
       - name: Reclaim disk

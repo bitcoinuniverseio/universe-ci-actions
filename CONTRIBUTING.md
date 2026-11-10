@@ -86,5 +86,5 @@ Prose style:
 
 ## Branches
 
-`develop` is the working branch. Branch from it and target it. `main` carries
-what consumers pin.
+`main` is the default branch and carries what consumers pin. Target it when
+proposing changes unless the repository maintainers specify otherwise.
