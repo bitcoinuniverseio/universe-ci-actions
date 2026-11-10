@@ -1,6 +1,6 @@
 import process from "node:process";
 import {
-  DOCKER_VERSION,
+  assertDockerMeetsPin,
   appendCommandValue,
   dockerCommand,
   hostCandidates,
@@ -19,7 +19,7 @@ async function main() {
   if (platform !== "linux") throw new Error(`Unsupported runner platform: ${platform}`);
 
   const version = dockerCommand(platform, ["version", "--format", "{{.Server.Version}}"], { capture: true }).stdout.trim();
-  if (version !== DOCKER_VERSION) throw new Error(`Expected Docker ${DOCKER_VERSION}, received ${version}`);
+  assertDockerMeetsPin(version);
 
   const inputs = {
     image: requiredInput("image"),

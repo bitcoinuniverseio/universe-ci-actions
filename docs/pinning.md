@@ -60,7 +60,7 @@ gh api "repos/bitcoinuniverseio/universe-ci-actions/contents/<action>/action.yml
 | --- | --- |
 | The action library | Git commit, with `v1` as the current release marker |
 | Node.js and npm | 24.19.0 and 11.17.0, pinned by every action |
-| Docker Engine | 29.7.2 exactly, checked by `universe-docker-env`, `portable-container-build` and both database fixtures |
+| Docker Engine | 29.7.2 or newer, checked by `universe-docker-env`, `portable-container-build` and the database fixtures |
 | Database fixture images | Supplied by the caller, and required to be pinned by `@sha256:` digest |
 | Third-party actions used inside these actions | Pinned by SHA: `actions/setup-node` v7.0.0, `actions/cache` v4.3.0 |
 

@@ -27,7 +27,10 @@ jobs:
       - uses: ./universe-docker-env
       - name: Check the Docker pin
         shell: bash
-        run: test "$(docker version --format '{{.Server.Version}}')" = '29.7.2'
+        run: |
+          current="$(docker version --format '{{.Server.Version}}')"
+          required='29.7.2'
+          test "$(printf '%s\n' "$required" "$current" | sort -V | head -n1)" = "$required"
 
   service-fixtures:
     name: Portable service fixtures prove their route

@@ -25,7 +25,7 @@ that pin it.
 - **No GitHub-hosted runner labels.** Not in this repository's own workflows, not
   in an example in the documentation, not in a test fixture. See
   [docs/runners.md](docs/runners.md).
-- **Pinned toolchain.** Node.js 24.19.0, npm 11.17.0, Docker Engine 29.7.2. If
+- **Pinned toolchain.** Node.js 24.19.0, npm 11.17.0, Docker Engine 29.7.2 or newer. If
   you change a pin here, change it everywhere it appears in this repository in
   the same commit: the action scripts, the fleet workflows, and the
   documentation.

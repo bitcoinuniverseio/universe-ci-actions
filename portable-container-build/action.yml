@@ -124,12 +124,23 @@ runs:
         $dockerArguments.Add($contextPath)
         try {
           $serverVersion = (& docker version --format '{{.Server.Version}}').Trim()
-          if ($serverVersion -ne '29.7.2') {
-            # Ephemeral cloud runners come from a vendor image that ships a
-            # different Docker Engine. The pinned version is an organization
-            # requirement, so install it here rather than refuse to build. The
-            # permanent fleet already matches, so this is a no-op there.
-            Write-Host "Docker $serverVersion is not the pinned 29.7.2, installing the pinned engine"
+          $requiredVersion = '29.7.2'
+          function VersionGe([string]$Have, [string]$Need) {
+            $hp = @($Have.Split('.') | ForEach-Object { [int]($_ -replace '\D.*$','0') })
+            $np = @($Need.Split('.') | ForEach-Object { [int]($_ -replace '\D.*$','0') })
+            $len = [Math]::Max($hp.Length, $np.Length)
+            for ($i = 0; $i -lt $len; $i++) {
+              $x = if ($i -lt $hp.Length) { $hp[$i] } else { 0 }
+              $y = if ($i -lt $np.Length) { $np[$i] } else { 0 }
+              if ($x -gt $y) { return $true }
+              if ($x -lt $y) { return $false }
+            }
+            return $true
+          }
+          if (-not (VersionGe $serverVersion $requiredVersion)) {
+            # Install a current engine only when the host is older than the
+            # minimum pin. Never downgrade a host that already meets it.
+            Write-Host "Docker $serverVersion is older than the minimum pin $requiredVersion, installing a current engine (never a downgrade)"
             $apt = 'DEBIAN_FRONTEND=noninteractive apt-get'
             & sudo bash -c "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc"
             if ($LASTEXITCODE -ne 0) { throw "Could not install the Docker apt key" }
@@ -137,14 +148,16 @@ runs:
             if ($LASTEXITCODE -ne 0) { throw "Could not add the Docker apt source" }
             & sudo bash -c "$apt update -qq"
             if ($LASTEXITCODE -ne 0) { throw "Could not refresh apt metadata" }
-            $candidate = (& bash -c "apt-cache madison docker-ce | awk '/29\.7\.2/ {print `$3; exit}'").Trim()
-            if (-not $candidate) { throw "Docker 29.7.2 is not offered by the Docker apt repository for this image" }
-            & sudo bash -c "$apt install -y -qq --allow-downgrades docker-ce=$candidate docker-ce-cli=$candidate containerd.io docker-buildx-plugin"
-            if ($LASTEXITCODE -ne 0) { throw "Could not install Docker 29.7.2" }
+            $candidate = (& bash -c "required=29.7.2; apt-cache madison docker-ce | awk '{print `$3}' | while read -r pkgver; do ver=`${pkgver#*:}; ver=`${ver%%-*}; if [ "`$(printf '%s\n' "`$required" "`$ver" | sort -V | head -n1)" = "`$required" ]; then echo "`$pkgver"; break; fi; done").Trim()
+            if (-not $candidate) { throw "No Docker Engine package at or newer than $requiredVersion is offered for this runner image" }
+            & sudo bash -c "$apt install -y -qq docker-ce=$candidate docker-ce-cli=$candidate containerd.io docker-buildx-plugin"
+            if ($LASTEXITCODE -ne 0) { throw "Could not install Docker $requiredVersion or newer" }
             & sudo systemctl restart docker
             $serverVersion = (& docker version --format '{{.Server.Version}}').Trim()
+          } else {
+            Write-Host "Docker $serverVersion meets the minimum pin $requiredVersion; leaving the host engine unchanged."
           }
-          if ($serverVersion -ne '29.7.2') { throw "Expected Docker 29.7.2, received $serverVersion" }
+          if (-not (VersionGe $serverVersion $requiredVersion)) { throw "Expected Docker $requiredVersion or newer, received $serverVersion" }
           & docker @dockerArguments
           if ($LASTEXITCODE -ne 0) { throw "Docker build exited with $LASTEXITCODE" }
           if ($shouldRun) {
