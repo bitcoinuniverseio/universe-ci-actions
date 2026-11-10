@@ -3,7 +3,33 @@ import { appendFileSync } from "node:fs";
 import { promises as dns } from "node:dns";
 import net from "node:net";
 
-export const DOCKER_VERSION = "29.7.2";
+
+export const DOCKER_MIN_VERSION = "29.7.2";
+/** Minimum pin; kept as DOCKER_VERSION so existing imports keep working. */
+export const DOCKER_VERSION = DOCKER_MIN_VERSION;
+
+export function versionGte(have, need) {
+  const parse = (value) => String(value).split(".").map((part) => {
+    const n = Number.parseInt(part, 10);
+    return Number.isFinite(n) ? n : 0;
+  });
+  const a = parse(have);
+  const b = parse(need);
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i += 1) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return true;
+}
+
+export function assertDockerMeetsPin(version, pin = DOCKER_MIN_VERSION) {
+  if (!versionGte(version, pin)) {
+    throw new Error(`Expected Docker ${pin} or newer, received ${version}`);
+  }
+}
 
 export function sanitizedIdentity(environment = process.env) {
   const identity = [
