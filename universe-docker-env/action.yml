@@ -16,34 +16,53 @@ runs:
         set -euo pipefail
 
         readonly required_version='29.7.2'
+
+        # Accept any engine at or newer than the pin. Never downgrade a host
+        # that already satisfies the minimum (the Universe fleet is on a
+        # newer engine than 29.7.2).
+        version_ge() {
+          local have="$1" need="$2"
+          [ "$(printf '%s\n' "$need" "$have" | sort -V | head -n1)" = "$need" ]
+        }
+
         current_version="$(docker version --format '{{.Server.Version}}')"
-        if [[ "$current_version" != "$required_version" ]]; then
-          echo "Docker $current_version is not the pinned $required_version. Installing the pinned engine."
-          sudo install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg |
-            sudo tee /etc/apt/keyrings/docker.asc >/dev/null
-          sudo chmod a+r /etc/apt/keyrings/docker.asc
-          . /etc/os-release
-          printf '%s\n' \
-            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" |
-            sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq
-          candidate="$(apt-cache madison docker-ce | awk '/29\.7\.2/ {print $3; exit}')"
-          if [[ -z "$candidate" ]]; then
-            echo "Docker $required_version is not offered for this runner image." >&2
-            exit 1
-          fi
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --allow-downgrades \
-            "docker-ce=$candidate" \
-            "docker-ce-cli=$candidate" \
-            containerd.io \
-            docker-buildx-plugin
-          sudo systemctl restart docker
-          current_version="$(docker version --format '{{.Server.Version}}')"
+        if version_ge "$current_version" "$required_version"; then
+          echo "Docker $current_version meets the minimum pin $required_version; leaving the host engine unchanged."
+          echo "version=$current_version" >> "$GITHUB_OUTPUT"
+          exit 0
         fi
 
-        if [[ "$current_version" != "$required_version" ]]; then
-          echo "Expected Docker $required_version, received $current_version" >&2
+        echo "Docker $current_version is older than the minimum pin $required_version. Installing a current engine, never a downgrade."
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg |
+          sudo tee /etc/apt/keyrings/docker.asc >/dev/null
+        sudo chmod a+r /etc/apt/keyrings/docker.asc
+        . /etc/os-release
+        printf '%s\n' \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" |
+          sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+        candidate="$(apt-cache madison docker-ce | awk -v pin="$required_version" '
+          $3 ~ /^[0-9]/ {
+            ver=$3
+            sub(/:.*/, "", ver)
+            sub(/-[^-]+$/, "", ver)
+            if (ver >= pin || ver ~ /^[0-9]+/) { print $3; exit }
+          }')"
+        if [[ -z "$candidate" ]]; then
+          echo "No Docker Engine package at or newer than $required_version is offered for this runner image." >&2
+          exit 1
+        fi
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+          "docker-ce=$candidate" \
+          "docker-ce-cli=$candidate" \
+          containerd.io \
+          docker-buildx-plugin
+        sudo systemctl restart docker
+        current_version="$(docker version --format '{{.Server.Version}}')"
+
+        if ! version_ge "$current_version" "$required_version"; then
+          echo "Expected Docker $required_version or newer, received $current_version" >&2
           exit 1
         fi
         echo "version=$current_version" >> "$GITHUB_OUTPUT"

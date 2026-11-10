@@ -10,7 +10,25 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PWSH_VERSION=7.6.6
 PWSH_SHA256=ddbc4a2d113bbd46d283cfedcbcd117a70caefd7673f41f2b4e0000badf103bc
-DEFAULT_PACKAGES="mysql-client-core-8.0 postgresql-client-16 redis-tools protobuf-compiler libprotobuf-dev pkg-config libssl-dev musl-tools git-lfs"
+# Resolve client package names per distro. Ubuntu 24.04 publishes
+# mysql-client-core-8.0 and postgresql-client-16; Ubuntu 26.04 publishes
+# unversioned mysql-client-core / mysql-client and postgresql-client /
+# postgresql-client-18. Prefer the historical pin when it still exists.
+resolve_apt_package() {
+  local candidate
+  for candidate in "$@"; do
+    if apt-cache show "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  echo "none of the candidate packages are available: $*" >&2
+  return 1
+}
+
+MYSQL_CLIENT_PACKAGE="$(resolve_apt_package mysql-client-core-8.0 mysql-client-core mysql-client)"
+POSTGRES_CLIENT_PACKAGE="$(resolve_apt_package postgresql-client-16 postgresql-client-18 postgresql-client)"
+DEFAULT_PACKAGES="$MYSQL_CLIENT_PACKAGE $POSTGRES_CLIENT_PACKAGE redis-tools protobuf-compiler libprotobuf-dev pkg-config libssl-dev musl-tools git-lfs"
 # Chromium runtime libraries and fonts for Playwright jobs on the host.
 BROWSER_PACKAGES="libnss3 libnspr4 libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 libcups2t64 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libxshmfence1 fontconfig fonts-liberation fonts-noto-color-emoji xvfb xauth xkb-data x11-xkb-utils"
 
@@ -61,7 +79,14 @@ lib="$PREFIX/usr/lib/x86_64-linux-gnu:$PREFIX/lib/x86_64-linux-gnu:$PREFIX/usr/l
 {
   echo "$PREFIX/usr/sbin"
   echo "$PREFIX/usr/bin"
-  echo "$PREFIX/usr/lib/postgresql/16/bin"
+  # Prefer the PostgreSQL major actually unpacked into the prefix, then any
+  # remaining published or host client bindirs (sorted newest first).
+  if compgen -G "$PREFIX/usr/lib/postgresql/*/bin" >/dev/null || compgen -G "/usr/lib/postgresql/*/bin" >/dev/null; then
+    # shellcheck disable=SC2086
+    for d in $(ls -d $PREFIX/usr/lib/postgresql/*/bin /usr/lib/postgresql/*/bin 2>/dev/null | sort -V -r); do
+      echo "$d"
+    done
+  fi
   echo "$ROOT/shim"
 } >> "$GITHUB_PATH"
 {
