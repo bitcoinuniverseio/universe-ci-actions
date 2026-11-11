@@ -10,7 +10,7 @@ when the job fails.
 ## Requirements
 
 - A Linux runner. Both actions fail immediately on any other platform.
-- Docker Engine 29.7.2 or newer. Run
+- Docker Engine 29.9.3 or newer. Run
   [`universe-docker-env`](container-builds.md#universe-docker-env) first on a
   runner that may not have it.
 - The image must be pinned by digest. An `image` input without `@sha256:` is
@@ -115,7 +115,7 @@ out at the fixture rather than in its tests.
 
 ## What they actually do
 
-1. Refuse a non-Linux platform and a Docker Engine older than 29.7.2.
+1. Refuse a non-Linux platform and a Docker Engine older than 29.9.3.
 2. Validate the inputs: digest-pinned image, safe database and user names, not
    `root`.
 3. `docker run --detach` with a run-scoped container name and a

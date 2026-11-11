@@ -15,11 +15,11 @@ runs:
       run: |
         set -euo pipefail
 
-        readonly required_version='29.7.2'
+        readonly required_version='29.9.3'
 
         # Accept any engine at or newer than the pin. Never downgrade a host
-        # that already satisfies the minimum (the Universe fleet is on a
-        # newer engine than 29.7.2).
+        # that already satisfies the minimum (the Universe fleet currently
+        # runs 29.9.3; a newer engine is left unchanged).
         version_ge() {
           local have="$1" need="$2"
           [ "$(printf '%s\n' "$need" "$have" | sort -V | head -n1)" = "$need" ]

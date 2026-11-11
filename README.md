@@ -18,7 +18,7 @@ store or the shared build store these actions depend on.
 
 **2. The toolchain is pinned.** Node.js **24.19.0**, npm **11.17.0**, everywhere
 they apply: local, servers, CI, containers. Container work additionally pins
-Docker Engine **29.7.2 or newer**.
+Docker Engine **29.9.3 or newer**.
 
 Both rules are violated often enough to be worth restating in every review.
 [docs/runners.md](docs/runners.md) explains how to choose a label, and what to do
@@ -48,7 +48,7 @@ Pin by full commit SHA. See [docs/pinning.md](docs/pinning.md).
 | --- | --- | --- |
 | `universe-node-env` | Resolves the pinned Node.js and npm from the runner's tool cache and reuses an exact, content-addressed dependency tree. Nothing is downloaded or installed on a warm runner. | [docs/universe-node-env.md](docs/universe-node-env.md) |
 | `universe-build-store` | Saves a build output once and restores it everywhere else, keyed by commit plus toolchain plus machine shape. Nothing is uploaded or metered. | [docs/universe-build-store.md](docs/universe-build-store.md) |
-| `universe-docker-env` | Ensures the runner has Docker Engine 29.7.2 or newer, without downgrading a newer host. | [docs/container-builds.md](docs/container-builds.md#universe-docker-env) |
+| `universe-docker-env` | Ensures the runner has Docker Engine 29.9.3 or newer, without downgrading a newer host. | [docs/container-builds.md](docs/container-builds.md#universe-docker-env) |
 | `portable-container-build` | Builds a Linux image and optionally runs a smoke command inside it before cleanup. | [docs/container-builds.md](docs/container-builds.md#portable-container-build) |
 | `portable-mysql-fixture` | Starts an isolated MySQL container for one job and removes it afterwards. | [docs/database-fixtures.md](docs/database-fixtures.md) |
 | `portable-postgres-fixture` | The same for PostgreSQL. | [docs/database-fixtures.md](docs/database-fixtures.md) |
