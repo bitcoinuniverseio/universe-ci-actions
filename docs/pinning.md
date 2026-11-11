@@ -61,6 +61,8 @@ gh api "repos/bitcoinuniverseio/universe-ci-actions/contents/<action>/action.yml
 | The action library | Git commit, with `v1` as the current release marker |
 | Node.js and npm | 24.19.0 and 11.17.0, pinned by every action |
 | Docker Engine | 29.9.3 or newer, checked by `universe-docker-env`, `portable-container-build` and the database fixtures |
+| Database fixture images | Supplied by the caller, and required to be pinned by `@sha256:` digest |
+| Third-party actions used inside these actions | Pinned by SHA: `actions/setup-node` v7.0.0, `actions/cache` v4.3.0 |
 
 The current Universe fleet engine (Ubuntu 26.04 resolute, no downgrade) is
 Docker 29.9.3. Packages and SHA256 digests from the signed Docker apt index
@@ -74,8 +76,6 @@ on 2026-11-11:
 | `containerd.io` | `2.4.2-3~ubuntu.26.04~resolute` | `e6197cb4f8b9efb2432e0bf242937e9270d25255a276ff7b810d7a0578782655` |
 
 Actions still accept a newer engine and will not downgrade a host.
-| Database fixture images | Supplied by the caller, and required to be pinned by `@sha256:` digest |
-| Third-party actions used inside these actions | Pinned by SHA: `actions/setup-node` v7.0.0, `actions/cache` v4.3.0 |
 
 Two caches carry their own schema version inside the key, so a change in how a
 key is computed cannot collide with archives written by an older version:
