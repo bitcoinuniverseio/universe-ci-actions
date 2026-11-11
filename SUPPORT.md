@@ -57,9 +57,9 @@ so a later step cannot silently consume an empty directory. Set
 `steps.<id>.outputs.state`. Example in
 [docs/universe-build-store.md](docs/universe-build-store.md#the-restore-step-fails-on-a-miss).
 
-### "Expected Docker 29.7.2 or newer, received ..."
+### "Expected Docker 29.9.3 or newer, received ..."
 
-The runner's Docker Engine is older than the minimum pin. Add `universe-docker-env` before the container step, and target a runner carrying `linux-container-builder`. A host that already runs 29.7.2 or newer is left unchanged.
+The runner's Docker Engine is older than the minimum pin. Add `universe-docker-env` before the container step, and target a runner carrying `linux-container-builder`. A host that already runs 29.9.3 or newer is left unchanged.
 
 ### "Unsupported runner platform" from a database fixture
 

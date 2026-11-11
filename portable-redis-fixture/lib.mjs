@@ -4,7 +4,7 @@ import { promises as dns } from "node:dns";
 import net from "node:net";
 
 
-export const DOCKER_MIN_VERSION = "29.7.2";
+export const DOCKER_MIN_VERSION = "29.9.3";
 /** Minimum pin; kept as DOCKER_VERSION so existing imports keep working. */
 export const DOCKER_VERSION = DOCKER_MIN_VERSION;
 

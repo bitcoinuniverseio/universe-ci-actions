@@ -58,7 +58,7 @@ Practical guidance:
 - **Default for any job:** `runs-on: [self-hosted, linux, x64, universe-super]`.
   PrimCast is the primary fleet; use it first.
 - **When the job needs Docker or Playwright:** the same selector works; every
-  PrimCast service carries Docker 29.7.2 and Playwright Chromium. The
+  PrimCast service carries Docker 29.9.3 and Playwright Chromium. The
   `portable-*` fixtures and `portable-container-build` refuse any other Docker
   version.
 - **Service containers must publish ephemeral host ports.** Every PrimCast

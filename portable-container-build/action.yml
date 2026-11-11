@@ -124,7 +124,7 @@ runs:
         $dockerArguments.Add($contextPath)
         try {
           $serverVersion = (& docker version --format '{{.Server.Version}}').Trim()
-          $requiredVersion = '29.7.2'
+          $requiredVersion = '29.9.3'
           function VersionGe([string]$Have, [string]$Need) {
             $hp = @($Have.Split('.') | ForEach-Object { [int]($_ -replace '\D.*$','0') })
             $np = @($Need.Split('.') | ForEach-Object { [int]($_ -replace '\D.*$','0') })
@@ -148,7 +148,7 @@ runs:
             if ($LASTEXITCODE -ne 0) { throw "Could not add the Docker apt source" }
             & sudo bash -c "$apt update -qq"
             if ($LASTEXITCODE -ne 0) { throw "Could not refresh apt metadata" }
-            $candidate = (& bash -c "required=29.7.2; apt-cache madison docker-ce | awk '{print `$3}' | while read -r pkgver; do ver=`${pkgver#*:}; ver=`${ver%%-*}; if [ "`$(printf '%s\n' "`$required" "`$ver" | sort -V | head -n1)" = "`$required" ]; then echo "`$pkgver"; break; fi; done").Trim()
+            $candidate = (& bash -c "required=29.9.3; apt-cache madison docker-ce | awk '{print `$3}' | while read -r pkgver; do ver=`${pkgver#*:}; ver=`${ver%%-*}; if [ "`$(printf '%s\n' "`$required" "`$ver" | sort -V | head -n1)" = "`$required" ]; then echo "`$pkgver"; break; fi; done").Trim()
             if (-not $candidate) { throw "No Docker Engine package at or newer than $requiredVersion is offered for this runner image" }
             & sudo bash -c "$apt install -y -qq docker-ce=$candidate docker-ce-cli=$candidate containerd.io docker-buildx-plugin"
             if ($LASTEXITCODE -ne 0) { throw "Could not install Docker $requiredVersion or newer" }

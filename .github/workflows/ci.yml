@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           current="$(docker version --format '{{.Server.Version}}')"
-          required='29.7.2'
+          required='29.9.3'
           test "$(printf '%s\n' "$required" "$current" | sort -V | head -n1)" = "$required"
 
   service-fixtures:

@@ -3,12 +3,12 @@
 Two actions cover container work: one makes sure the runner has the pinned
 Docker Engine, the other builds and smoke-tests a Linux image.
 
-Both require **Docker Engine 29.7.2 or newer**. A host that already meets the minimum is left unchanged; the actions will not downgrade the engine.
+Both require **Docker Engine 29.9.3 or newer**. A host that already meets the minimum is left unchanged; the actions will not downgrade the engine.
 Target a runner that carries `linux-container-builder`.
 
 ## `universe-docker-env`
 
-Checks the Docker Engine version and, only when it is older than 29.7.2, installs a current engine from the Docker apt repository. A newer engine is accepted as-is. Use it before a container fixture on a fresh RunsOn machine. On the permanent fleet that already meets the pin it is a no-op.
+Checks the Docker Engine version and, only when it is older than 29.9.3, installs a current engine from the Docker apt repository. A newer engine is accepted as-is. Use it before a container fixture on a fresh RunsOn machine. On the permanent fleet that already meets the pin it is a no-op.
 
 ```yaml
 - uses: bitcoinuniverseio/universe-ci-actions/universe-docker-env@a812b5dfdaf19401b054a8f7d248a3e875cd86f2
@@ -26,7 +26,7 @@ No inputs.
 | --- | --- |
 | `docker-version` | Docker Engine version available to later steps. |
 
-It installs from the Docker apt repository on Ubuntu, needs `sudo`, and fails with a clear message when no engine at or newer than 29.7.2 is offered for that runner image.
+It installs from the Docker apt repository on Ubuntu, needs `sudo`, and fails with a clear message when no engine at or newer than 29.9.3 is offered for that runner image.
 
 ## `portable-container-build`
 
