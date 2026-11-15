@@ -47,7 +47,7 @@ Pin by full commit SHA. See [docs/pinning.md](docs/pinning.md).
 | Action | Does | Reference |
 | --- | --- | --- |
 | `universe-node-env` | Resolves the pinned Node.js and npm from the runner's tool cache and reuses an exact, content-addressed dependency tree. Nothing is downloaded or installed on a warm runner. | [docs/universe-node-env.md](docs/universe-node-env.md) |
-| `universe-build-store` | Saves a build output once and restores it everywhere else, keyed by commit plus toolchain plus machine shape. Nothing is uploaded or metered. | [docs/universe-build-store.md](docs/universe-build-store.md) |
+| `universe-build-store` | Saves a build output once and restores it everywhere else, keyed by every input that changes its bytes (commit or listed file contents, command, environment, toolchain, machine shape). Leased, integrity-checked, budgeted. Nothing is uploaded or metered. | [docs/universe-build-store.md](docs/universe-build-store.md) |
 | `universe-docker-env` | Ensures the runner has Docker Engine 29.9.3 or newer, without downgrading a newer host. | [docs/container-builds.md](docs/container-builds.md#universe-docker-env) |
 | `portable-container-build` | Builds a Linux image and optionally runs a smoke command inside it before cleanup. | [docs/container-builds.md](docs/container-builds.md#portable-container-build) |
 | `portable-mysql-fixture` | Starts an isolated MySQL container for one job and removes it afterwards. | [docs/database-fixtures.md](docs/database-fixtures.md) |

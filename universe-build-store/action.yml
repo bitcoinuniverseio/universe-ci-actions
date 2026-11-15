@@ -1,12 +1,13 @@
 name: Universe build store
 description: >-
-  Saves a build output once and restores it everywhere else, keyed by the exact
-  commit. On a persistent runner the store is local NVMe shared by every runner
-  service on the host, so nothing is uploaded, downloaded or metered.
+  Saves a build output once and restores it everywhere else, keyed by every
+  input that can change its bytes. On a persistent runner the store is local
+  NVMe shared by every runner service on the host, so nothing is uploaded,
+  downloaded or metered.
 
 inputs:
   path:
-    description: Directory to save or restore.
+    description: Directory to save or restore, relative to the workspace.
     required: true
   mode:
     description: save or restore.
@@ -15,11 +16,40 @@ inputs:
     description: Extra text folded into the key, for a repository that builds more than one output from one commit.
     required: false
     default: ''
+  inputs:
+    description: >-
+      Newline-separated git pathspecs whose file contents determine the output
+      (sources, lockfile, build configuration). When set, the key is the content
+      of those files instead of the commit, so an unrelated commit reuses the
+      same output. When empty, the key is the commit, as in v1.
+    required: false
+    default: ''
+  command:
+    description: The build command, folded into the key so a changed command is a different entry.
+    required: false
+    default: ''
+  env-keys:
+    description: >-
+      Space- or newline-separated names of environment variables whose values
+      change the output (for example VITE_API_ORIGIN). Values enter the key only
+      as an opaque digest and are never logged.
+    required: false
+    default: ''
+  embeds-commit:
+    description: Set to true with `inputs` when the build writes the commit id into its output, so the commit stays part of the key.
+    required: false
+    default: 'false'
 
 outputs:
   state:
-    description: hit or miss on restore, stored on save.
+    description: hit or miss on restore; stored, skipped or unavailable on save.
     value: ${{ steps.run.outputs.state }}
+  key:
+    description: The key this job saved or looked up.
+    value: ${{ steps.run.outputs.key }}
+  source:
+    description: On a hit, the key that was actually restored (a pull request may restore a trusted entry).
+    value: ${{ steps.run.outputs.source }}
 
 runs:
   using: composite
@@ -30,4 +60,8 @@ runs:
         BUILD_PATH: ${{ inputs.path }}
         BUILD_MODE: ${{ inputs.mode }}
         KEY_SUFFIX: ${{ inputs.key-suffix }}
+        BUILD_INPUTS: ${{ inputs.inputs }}
+        BUILD_COMMAND: ${{ inputs.command }}
+        BUILD_ENV_KEYS: ${{ inputs.env-keys }}
+        BUILD_EMBEDS_COMMIT: ${{ inputs.embeds-commit }}
       run: bash "${{ github.action_path }}/build-store.sh"
