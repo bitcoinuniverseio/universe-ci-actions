@@ -1,0 +1,44 @@
+name: Fleet host inventory
+
+# Read-only. Reports the shape and current pressure of whichever Universe hosts
+# pick up these jobs: CPU, memory, disks and RAID, filesystems, I/O, runner and
+# job counts, Docker and the shared stores. No sudo, no environment dump; a host
+# is identified by a hash of its machine-id so samples can be grouped by host.
+on: [workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    # Six samples: each lands on whichever runner is free, so several are needed
+    # to see more than one host.
+    strategy:
+      fail-fast: false
+      matrix:
+        sample: [1, 2, 3, 4, 5, 6]
+    runs-on: [self-hosted, Linux, X64, universe]
+    timeout-minutes: 8
+    steps:
+      - name: Host inventory
+        shell: bash
+        run: |
+          set -u
+          sec() { echo; echo "## $1"; }
+          t() { timeout "${2:-20}" bash -c "$1" 2>&1 | head -n "${3:-60}"; }
+          host_id="$(sha256sum /etc/machine-id 2>/dev/null | cut -c1-12)"
+          echo "INVENTORY host_id=${host_id} runner=${RUNNER_NAME} sample=${{ matrix.sample }} at=$(date -u +%FT%TZ)"
+          sec system;   t 'hostname; uname -srm; . /etc/os-release; echo "$PRETTY_NAME"; uptime'
+          sec cpu;      t 'lscpu | grep -E "^(Model name|Socket|Core|Thread|CPU\(s\)|NUMA node\(s\)|CPU max MHz|CPU min MHz)"; echo "governor=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo n/a)"; echo "loadavg=$(cat /proc/loadavg)"'
+          sec memory;   t 'free -g; grep -E "^(MemAvailable|SwapTotal|SwapFree|Dirty|Writeback):" /proc/meminfo'
+          sec pressure; t 'for r in cpu memory io; do echo "$r: $(tr "\n" " " < /proc/pressure/$r)"; done'
+          sec oom;      t 'journalctl -k --since "-7 days" --no-pager 2>/dev/null | grep -ciE "out of memory|oom-kill" || echo "kernel log not readable"'
+          sec disks;    t 'lsblk -d -o NAME,TYPE,SIZE,ROTA,TRAN,MODEL 2>/dev/null' 20 40
+          sec raid;     t 'cat /proc/mdstat 2>/dev/null || echo "no md"; lsblk -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINT 2>/dev/null | grep -E "raid|md|lvm" | head -20'
+          sec filesystems; t 'df -hT -x tmpfs -x devtmpfs -x overlay -x squashfs 2>/dev/null; findmnt -no TARGET,SOURCE,FSTYPE,OPTIONS / 2>/dev/null'
+          sec io_5s;    t 'a="$(cat /proc/diskstats)"; sleep 5; b="$(cat /proc/diskstats)"; paste <(echo "$a") <(echo "$b") | awk "{ if (\$3 ~ /^(nvme[0-9]+n[0-9]+|sd[a-z]+|md[0-9]+)$/) { rd=(\$20-\$6)*512/5/1048576; wr=(\$24-\$10)*512/5/1048576; ios=(\$18-\$4)+(\$22-\$8); busy=(\$27-\$13)/50; w=(\$28-\$14); printf \"%-10s read=%6.1fMB/s write=%6.1fMB/s iops=%6.0f util=%5.1f%% avg_wait=%6.2fms\n\", \$3, rd, wr, ios/5, busy, (ios>0? w/ios : 0) } }"' 30
+          sec runners;  t 'echo "listeners=$(pgrep -fc "Runner\.Listener" || true) workers_busy=$(pgrep -fc "Runner\.Worker" || true)"; ps -eo args= | grep -o "[^ ]*/run\(\.sh\|svc\)\?[^ ]*Runner\.Listener" | sort -u | wc -l | sed "s/^/listener_paths=/"'
+          sec docker;   t 'docker info --format "server={{.ServerVersion}} cpus={{.NCPU}} mem={{.MemTotal}} running={{.ContainersRunning}} images={{.Images}} storage={{.Driver}} root={{.DockerRootDir}}"; timeout 30 docker system df 2>&1' 40
+          sec services; t 'systemctl list-units --type=service --state=running --no-pager --plain --no-legend 2>/dev/null | awk "{print \$1}" | grep -iE "universe|runner|actions|ord|bitcoin|zcash|litecoin|doge|index|mysql|maria|postgres|redis|nginx|caddy|docker|ollama|vllm|llama" | sort | uniq -c | sort -rn | head -40'
+          sec stores;   t 'root="$(dirname "$(npm config get cache 2>/dev/null || echo /tmp/x)")"; for s in .universe-dep-store .universe-build-store; do d="$root/$s"; if [ -d "$d" ]; then echo "$s: entries=$(find "$d" -maxdepth 1 -name "*.tar.zst" | wc -l) v1=$(find "$d" -maxdepth 1 -name "build-v1-*" | wc -l) v2=$(find "$d" -maxdepth 1 -name "build-v2-*" | wc -l) size=$(timeout 60 du -sh "$d" | cut -f1) partial=$(find "$d" -maxdepth 1 -name "*partial*" | wc -l)"; else echo "$s: absent at $d"; fi; done; df -h "$root" | tail -1' 90
+          sec network;  t 'ss -s | head -3'
