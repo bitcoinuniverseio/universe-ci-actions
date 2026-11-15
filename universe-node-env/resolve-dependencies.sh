@@ -20,14 +20,42 @@ if [ "${PERSISTENT_RUNNER}" = true ]; then
   archive="${DEPENDENCY_STORE}/${DEPENDENCY_KEY}.tar.zst"
 fi
 
-# Warm path 1: the exact tree already sits on this runner's own disk.
+# zstd threads for a save: this job's fair share of the host, never -T0. One
+# PrimCast host runs 48 runner services, so -T0 in every job oversubscribes it
+# whenever a few cold installs coincide. Level 3 measured best on total
+# save+restore time (docs/universe-build-store.md, "Compression").
+store_threads() {
+  if [ -n "${UNIVERSE_STORE_THREADS:-}" ]; then echo "${UNIVERSE_STORE_THREADS}"; return; fi
+  local n q p jobs
+  n="$(nproc 2>/dev/null || echo 1)"
+  if [ -r /sys/fs/cgroup/cpu.max ]; then
+    read -r q p < /sys/fs/cgroup/cpu.max || true
+    if [ "${q:-max}" != max ] && [ "${p:-0}" -gt 0 ]; then
+      q=$(( (q + p - 1) / p )); [ "${q}" -lt "${n}" ] && n="${q}"
+    fi
+  fi
+  jobs="$(pgrep -f 'Runner\.Worker' 2>/dev/null | wc -l | tr -d ' ')"
+  [ "${jobs:-0}" -gt 1 ] && n=$(( n / jobs ))
+  [ "${n}" -gt 4 ] && n=4
+  [ "${n}" -lt 1 ] && n=1
+  echo "${n}"
+}
+
+# Warm path 1: the exact tree already sits on this runner's own disk. A corrupt
+# or truncated archive, or one pruned between the check and the read, is a
+# recoverable miss: drop it and fall through to the cold path instead of
+# failing every job on this host that shares the lockfile.
 if [ -n "${archive}" ] && [ -f "${archive}" ]; then
+  touch -c "${archive}" 2>/dev/null || true
   rm -rf node_modules
-  tar --use-compress-program='zstd -d -T0' -xf "${archive}"
-  touch "${archive}"
-  state=hit
-  report
-  exit 0
+  if tar --use-compress-program='zstd -d -q' -xf "${archive}"; then
+    state=hit
+    report
+    exit 0
+  fi
+  echo "::warning::Dependency store entry ${DEPENDENCY_KEY} failed to extract and was discarded; installing instead."
+  rm -f "${archive}"
+  rm -rf node_modules
 fi
 
 # Warm path 2: actions/cache already restored the exact tree for this key.
@@ -58,9 +86,16 @@ if [ -n "${archive}" ]; then
   # Written to a private temporary name and moved into place, so a second job
   # racing on the same key never reads a half-written archive.
   staging="${archive}.$$.partial"
-  tar --use-compress-program='zstd -6 -T0' -cf "${staging}" node_modules
-  mv -f "${staging}" "${archive}"
-  echo "DEPENDENCY STORED: ${archive} ($(du -h "${archive}" | cut -f1))"
+  threads="$(store_threads)"
+  level="${UNIVERSE_STORE_LEVEL:-3}"
+  if tar --use-compress-program="zstd -q -${level} -T${threads}" -cf "${staging}" node_modules; then
+    mv -f "${staging}" "${archive}"
+    echo "DEPENDENCY STORED: ${archive} ($(du -h "${archive}" | cut -f1), zstd -${level} -T${threads})"
+  else
+    # A full disk must not fail a job whose install already succeeded.
+    rm -f "${staging}"
+    echo "::warning::Could not write the dependency store archive; this install is not shared."
+  fi
 
   # Least-recently-used pruning keeps the store bounded without a scheduled job.
   # Every hit touches its archive, so an active dependency identity survives.
