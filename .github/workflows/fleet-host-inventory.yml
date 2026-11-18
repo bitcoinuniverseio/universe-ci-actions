@@ -20,7 +20,9 @@ jobs:
         shell: bash
         run: |
           set +e
-          echo '## resource policy source'
-          ls -l /usr/local/bin/universe-resource-balancer /etc/systemd/system-generators/universe-resources-generator
-          grep -n -E '(runner|inference|memory|Memory|cpu|CPU|quota|Quota|set-property|MemTotal|MemAvailable|systemctl)' /usr/local/bin/universe-resource-balancer /etc/systemd/system-generators/universe-resources-generator | grep -viE '(secret|token|password|credential)' | head -250
+          echo '## slice and host demand'
+          for s in runners.slice inference.slice system.slice user.slice; do d=/sys/fs/cgroup/$s; echo "-- $s"; for f in memory.current memory.high memory.max cpu.max cpu.stat memory.pressure cpu.pressure; do [ -r "$d/$f" ] && { printf '%s: ' "$f"; tr '\n' ' ' < "$d/$f"; echo; }; done; done
+          grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo
+          echo '## maintenance permissions'
+          timeout 5 sudo -n -l 2>&1 | head -35
           exit 0
