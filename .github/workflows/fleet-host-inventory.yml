@@ -20,11 +20,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          echo '## balancer service and timer'
-          systemctl cat universe-resource-balancer.service universe-resource-balancer.timer
-          echo '## balancer properties'
-          systemctl show universe-resource-balancer.service -p ExecStart -p FragmentPath -p DropInPaths --no-pager
-          systemctl list-timers --all --no-pager --plain | grep -iE 'universe|resource|budget'
-          echo '## generator source references'
-          grep -R -l -E '95-live-hardware|runners[.]slice' /usr/lib/systemd/system-generators /etc/systemd/system-generators 2>/dev/null | head -30
+          echo '## resource policy source'
+          ls -l /usr/local/bin/universe-resource-balancer /etc/systemd/system-generators/universe-resources-generator
+          grep -n -E '(runner|inference|memory|Memory|cpu|CPU|quota|Quota|set-property|MemTotal|MemAvailable|systemctl)' /usr/local/bin/universe-resource-balancer /etc/systemd/system-generators/universe-resources-generator | grep -viE '(secret|token|password|credential)' | head -250
           exit 0
