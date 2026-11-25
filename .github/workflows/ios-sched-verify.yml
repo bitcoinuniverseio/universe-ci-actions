@@ -1,0 +1,28 @@
+name: iOS Scheduler Verify
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: [self-hosted, ios-sched, macos, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check scheduler status
+        run: ios-build status
+      - name: Run scheduled verification job on Mac fleet
+        run: |
+          ios-build run \
+            --org "${{ github.repository_owner }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ github.sha }}" \
+            --scheme verify \
+            --action build \
+            --priority normal \
+            --owner "gha-${{ github.repository }}" \
+            --rsync "$GITHUB_WORKSPACE" \
+            -- 'echo "IOS_SCHED_GHA_OK host=$(hostname) pwd=$PWD dd=$IOS_DERIVED_DATA spm=$IOS_SPM_DIR" && test -f README.md'
